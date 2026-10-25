@@ -1,0 +1,422 @@
+rules_version = '2';
+
+// HESERIA — Reglas de Firestore.
+//
+// No hay servidor propio: cualquiera con la configuración pública de la app
+// puede hablar directo con Firestore. La app es solo navegación; quien decide
+// qué se puede leer y escribir es este archivo. Cada colección nace aquí y
+// tiene su prueba en tests/rules.test.mjs.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ------------------------------------------------------------ funciones
+
+    // Dueña de la plataforma. Es la primera administradora y la única que
+    // puede nombrar a otras: así nadie se da permisos a sí mismo.
+    function ownerEmail() { return 'christianaguilar421@gmail.com'; }
+
+    function signedIn() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+    function path(col, id) { return /databases/$(database)/documents/$(col)/$(id); }
+    function hasProfile() { return signedIn() && exists(path('users', uid())); }
+    function me() { return get(path('users', uid())).data; }
+    function myRole() { return hasProfile() ? me().get('role', 'user') : 'user'; }
+    function active() { return hasProfile() && me().get('status', 'active') == 'active'; }
+    function isOwner() {
+      return signedIn()
+        && request.auth.token.email == ownerEmail()
+        && request.auth.token.email_verified == true;
+    }
+    function isAdmin() { return isOwner() || (active() && myRole() == 'admin'); }
+    function roleIn(roles) { return isAdmin() || (active() && myRole() in roles); }
+
+    // Quién publica contenido editorial y de iglesia.
+    function canPublish() {
+      return roleIn(['pastor', 'church_admin', 'teacher', 'artist', 'creator']);
+    }
+    function canTeach() { return roleIn(['teacher', 'pastor', 'church_admin']); }
+    function canModerate() { return roleIn(['moderator']); }
+
+    function data() { return request.resource.data; }
+    function changedOnly(keys) { return data().diff(resource.data).affectedKeys().hasOnly(keys); }
+    function str(v, min, max) { return v is string && v.size() >= min && v.size() <= max; }
+    function optStr(m, k, max) { return !(k in m) || (m[k] is string && m[k].size() <= max); }
+    function num(v, min, max) { return (v is int || v is float) && v >= min && v <= max; }
+    function nowish(v) { return v == request.time; }
+    // Un contador solo se mueve de a uno: así no se inflan los «me gusta».
+    function stepped(field) {
+      return (data()[field] - resource.data.get(field, 0)) in [-1, 1];
+    }
+    function url(v) { return v is string && v.size() <= 2000 && v.matches('https://[^ ]+'); }
+
+    // Todo lo que no se menciona abajo queda cerrado.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ------------------------------------------------------------- personas
+
+    match /users/{userId} {
+      allow read: if signedIn();
+
+      // Al crearse la cuenta: siempre como «user» y activa. Nadie nace admin.
+      allow create: if signedIn() && userId == uid()
+        && data().role == 'user'
+        && data().get('status', 'active') == 'active'
+        && str(data().firstName, 1, 60)
+        && str(data().lastName, 0, 60)
+        && data().followers == 0 && data().following == 0;
+
+      // La persona edita su perfil, pero no su rol, ni su estado, ni sus
+      // contadores de seguidores (esos los mueve quien sigue).
+      allow update: if signedIn() && userId == uid()
+        && !data().diff(resource.data).affectedKeys().hasAny(['role', 'status', 'followers', 'joinedAt'])
+        && optStr(data(), 'bio', 500)
+        && optStr(data(), 'avatarUrl', 60000);
+
+      // Seguir o dejar de seguir: solo ese contador, de a uno.
+      allow update: if signedIn() && userId != uid()
+        && changedOnly(['followers']) && stepped('followers');
+
+      // La administración reparte roles y suspende cuentas. Solo el superadmin
+      // (ownerEmail) nombra o quita administradores.
+      allow update: if isAdmin() && changedOnly(['role', 'status', 'churchId'])
+        && ((data().role != 'admin' && resource.data.get('role', 'user') != 'admin') || isOwner());
+      allow delete: if (signedIn() && userId == uid()) || isAdmin();
+
+      match /private/{docId} {
+        allow read, write: if (signedIn() && userId == uid()) || isAdmin();
+      }
+
+      // Lo de cada persona es solo suyo.
+      match /{sub}/{docId} {
+        allow read, write: if signedIn() && userId == uid()
+          && sub in ['library', 'history', 'downloads', 'marks', 'enrollments', 'following', 'planProgress'];
+      }
+
+      // Avisos: la persona los lee y los marca. Cualquiera con sesión puede
+      // dejar uno —un mensaje, una oración respondida—, pero no inventar uno de
+      // «sistema» ni escribir en nombre de otra persona.
+      match /notifications/{notificationId} {
+        allow read, delete: if signedIn() && userId == uid();
+        allow update: if signedIn() && userId == uid() && changedOnly(['read']);
+        allow create: if signedIn()
+          && data().keys().hasOnly(['category', 'title', 'body', 'href', 'createdAt', 'read', 'from'])
+          && data().from == uid()
+          && data().read == false
+          && nowish(data().createdAt)
+          && str(data().title, 1, 140) && str(data().body, 0, 400)
+          && (data().category != 'sistema' || isAdmin())
+          && data().category in ['mensajes', 'oración', 'comunidad', 'cursos', 'eventos', 'iglesia', 'sistema'];
+      }
+    }
+
+    // Portada del perfil: aparte para no cargarla cada vez que se lee a alguien.
+    match /covers/{userId} {
+      allow read: if signedIn();
+      allow write: if signedIn() && userId == uid()
+        && (request.resource == null || str(data().data, 0, 400000));
+    }
+
+    // -------------------------------------------------------------- iglesias
+
+    match /churches/{churchId} {
+      allow read: if true;
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || roleIn(['church_admin', 'pastor']) && resource.data.get('adminId', '') == uid();
+      allow update: if signedIn() && changedOnly(['members']) && stepped('members');
+
+      match /members/{userId} {
+        allow read: if signedIn();
+        allow create, delete: if signedIn() && userId == uid();
+      }
+    }
+
+    // ---------------------------------------------------- contenido editorial
+
+    // Devocionales, planes y cursos: los lee cualquiera; los escribe quien enseña.
+    match /devotionals/{id} {
+      allow read: if true;
+      allow write: if isAdmin() || canPublish();
+    }
+    match /plans/{id} {
+      allow read: if true;
+      allow write: if isAdmin() || canPublish();
+      allow update: if signedIn() && changedOnly(['participants']) && stepped('participants');
+    }
+    match /courses/{id} {
+      allow read: if true;
+      allow create: if canTeach();
+      allow update, delete: if isAdmin() || (canTeach() && resource.data.instructorId == uid());
+      allow update: if signedIn() && changedOnly(['students']) && stepped('students');
+    }
+
+    // Cuántas personas marcaron cada versículo. Solo se suma o resta uno.
+    match /verseCounts/{id} {
+      allow read: if signedIn();
+      allow write: if signedIn();
+    }
+
+    // Media publicada por sus dueños (enlace a su YouTube, Spotify o archivo).
+    // Nada de catálogo de terceros: solo lo que sube quien tiene los derechos.
+    match /content/{id} {
+      allow read: if resource == null || resource.data.status == 'publicado'
+        || (signedIn() && resource.data.ownerId == uid()) || isAdmin();
+      allow create: if canPublish() && data().ownerId == uid()
+        && str(data().title, 2, 160)
+        && data().kind in ['song', 'album', 'movie', 'series', 'video', 'sermon', 'podcast']
+        && nowish(data().createdAt);
+      allow update, delete: if (signedIn() && resource.data.ownerId == uid()) || isAdmin();
+      allow update: if signedIn() && changedOnly(['views']) && stepped('views');
+    }
+
+    // ------------------------------------------------------------- podcasts
+
+    match /podcastFeeds/{id} {
+      allow read: if true;
+      allow create: if canPublish() && data().addedBy == uid();
+      allow update, delete: if isAdmin() || (canPublish() && resource.data.addedBy == uid());
+    }
+    match /podcastEpisodes/{id} {
+      allow read: if true;
+      allow write: if isAdmin() || canPublish();
+    }
+
+    // -------------------------------------------------------------- oración
+
+    match /prayers/{id} {
+      function visible() {
+        return resource.data.visibility == 'public'
+          || resource.data.authorId == uid()
+          || (resource.data.visibility == 'church'
+              && hasProfile() && me().get('churchId', '') != ''
+              && me().get('churchId', '') == resource.data.get('churchId', '-'));
+      }
+      allow read: if signedIn() && (resource == null || visible() || isAdmin());
+      allow create: if active() && data().authorId == uid()
+        && str(data().title, 3, 140) && str(data().body, 3, 2000)
+        && data().visibility in ['public', 'private', 'church']
+        && data().prayingCount == 0 && data().answered == false
+        && nowish(data().createdAt);
+      allow update: if signedIn() && resource.data.authorId == uid()
+        && changedOnly(['answered', 'testimony']);
+      allow update: if signedIn() && changedOnly(['prayingCount']) && stepped('prayingCount');
+      allow delete: if signedIn() && (resource.data.authorId == uid() || isAdmin() || canModerate());
+
+      match /prayedBy/{userId} {
+        allow read: if signedIn();
+        allow create, delete: if signedIn() && userId == uid();
+      }
+    }
+
+    // ------------------------------------------------------------ comunidad
+
+    match /posts/{id} {
+      allow read: if signedIn();
+      allow create: if active() && data().authorId == uid()
+        && str(data().body, 1, 3000)
+        && data().likes == 0 && data().shares == 0 && data().commentCount == 0
+        && nowish(data().createdAt);
+      allow update: if signedIn() && resource.data.authorId == uid() && changedOnly(['body', 'hashtags']);
+      allow update: if signedIn() && changedOnly(['likes']) && stepped('likes');
+      allow update: if signedIn() && changedOnly(['commentCount']) && stepped('commentCount');
+      allow delete: if signedIn() && (resource.data.authorId == uid() || isAdmin() || canModerate());
+
+      match /likes/{userId} {
+        allow read: if signedIn();
+        allow create, delete: if signedIn() && userId == uid();
+      }
+      match /comments/{commentId} {
+        allow read: if signedIn();
+        allow create: if active() && data().authorId == uid() && str(data().body, 1, 1000)
+          && nowish(data().createdAt);
+        allow delete: if signedIn() && (resource.data.authorId == uid() || isAdmin() || canModerate());
+      }
+    }
+
+    match /groups/{id} {
+      allow read: if signedIn();
+      allow create: if roleIn(['leader', 'youth_leader', 'pastor', 'church_admin'])
+        && data().ownerId == uid();
+      allow update, delete: if isAdmin() || (signedIn() && resource.data.ownerId == uid());
+      allow update: if signedIn() && changedOnly(['memberCount']) && stepped('memberCount');
+
+      match /members/{userId} {
+        allow read: if signedIn();
+        allow create, delete: if signedIn() && userId == uid();
+      }
+    }
+
+    match /events/{id} {
+      allow read: if true;
+      allow create: if canPublish() && data().ownerId == uid();
+      allow update, delete: if isAdmin() || (signedIn() && resource.data.ownerId == uid());
+      allow update: if signedIn() && changedOnly(['attendees']) && stepped('attendees');
+
+      match /rsvps/{userId} {
+        allow read: if signedIn();
+        allow create, delete: if signedIn() && userId == uid();
+      }
+    }
+
+    match /ministries/{id} {
+      allow read: if true;
+      allow create: if roleIn(['pastor', 'church_admin', 'leader']) && data().ownerId == uid();
+      allow update, delete: if isAdmin() || (signedIn() && resource.data.ownerId == uid());
+    }
+
+    // ---------------------------------------------------------- mensajería
+
+    match /chats/{chatId} {
+      function member() { return signedIn() && uid() in resource.data.members; }
+      // Leer uno que no existe se permite: así se sabe si hay que crearlo.
+      allow read: if resource == null || member();
+      allow create: if signedIn() && uid() in data().members
+        && data().members.size() >= 2 && data().members.size() <= 50;
+      // Los miembros actualizan el resumen, lo leído y el «escribiendo…», pero
+      // no la lista de miembros.
+      allow update: if member() && data().members == resource.data.members;
+
+      match /messages/{messageId} {
+        function chatMember() {
+          return signedIn() && uid() in get(path('chats', chatId)).data.members;
+        }
+        allow read: if chatMember();
+        allow create: if chatMember() && data().authorId == uid()
+          && str(data().body, 0, 4000) && nowish(data().createdAt);
+        // Solo se reacciona; el texto no se reescribe.
+        allow update: if chatMember() && changedOnly(['reactions']);
+      }
+    }
+
+    // Llamadas: la señalización WebRTC viaja por aquí.
+    match /calls/{callId} {
+      // Dos comparaciones con «o», no `uid in [from, to]`: así Firestore puede
+      // probar la regla en las consultas filtradas por `from` o por `to`.
+      function party() { return signedIn() && (resource.data.from == uid() || resource.data.to == uid()); }
+      allow read: if resource == null || party();
+      allow create: if signedIn() && data().from == uid() && data().status == 'ringing';
+      allow update: if party();
+
+      match /signals/{signalId} {
+        function callParty() {
+          let c = get(path('calls', callId)).data;
+          return signedIn() && uid() in [c.from, c.to];
+        }
+        allow read: if callParty();
+        allow create: if callParty() && data().from == uid();
+      }
+    }
+
+    // ------------------------------------------------------------- archivos
+
+    // Sin Storage en el plan gratuito: el archivo va en trozos dentro de
+    // Firestore. La ficha dice quién puede abrirlo.
+    match /files/{fileId} {
+      // Las listas consultan siempre con `visibility` (y `courseId` para lo de
+      // un curso) para que la regla se pueda probar sobre la consulta entera.
+      function canSee(f) {
+        return f.visibility == 'public'
+          || f.ownerId == uid()
+          || isAdmin()
+          || (f.visibility == 'enrolled' && (canTeach() || exists(/databases/$(database)/documents/users/$(uid())/enrollments/$(f.get('courseId', '-')))))
+          || (f.visibility == 'members' && f.scope == 'group' && exists(/databases/$(database)/documents/groups/$(f.scopeId)/members/$(uid())))
+          || (f.visibility == 'members' && f.scope == 'message' && uid() in get(path('chats', f.scopeId)).data.members);
+      }
+      allow read: if signedIn() && (resource == null || canSee(resource.data));
+      allow create: if active() && data().ownerId == uid()
+        && num(data().size, 1, 10485760)
+        && data().visibility in ['public', 'enrolled', 'members', 'private'];
+      allow delete: if signedIn() && (resource.data.ownerId == uid() || isAdmin());
+
+      match /chunks/{n} {
+        function file() { return get(path('files', fileId)).data; }
+        allow read: if signedIn() && canSee(file());
+        allow create: if signedIn() && file().ownerId == uid() && str(data().data, 1, 900000);
+        allow delete: if signedIn() && (file().ownerId == uid() || isAdmin());
+      }
+    }
+
+    // ------------------------------------------- fundación (única que recauda)
+
+    // Solo la Fundación Heseria —es decir, el superadmin (ownerEmail)— abre casos y
+    // decide a qué cuentas llega el dinero. Ninguna iglesia ni persona puede
+    // abrir una colecta dentro de la app.
+    match /foundationCases/{id} {
+      allow read: if true;
+      allow write: if isOwner();
+    }
+    match /volunteer/{id} {
+      allow read: if true;
+      allow write: if isOwner();
+      allow update: if signedIn() && changedOnly(['taken']) && stepped('taken');
+    }
+    match /volunteerApplications/{id} {
+      allow read: if signedIn() && (resource.data.userId == uid() || isOwner());
+      allow create: if active() && data().userId == uid() && id == data().opportunityId + '_' + uid();
+    }
+
+    match /settings/payments {
+      allow read: if true;
+      allow write: if isOwner();
+    }
+
+    match /donations/{id} {
+      allow read: if signedIn() && (resource.data.donorId == uid() || isOwner());
+      allow create: if active() && data().donorId == uid()
+        && data().status == 'pendiente'
+        && num(data().amount, 1, 1000000)
+        && nowish(data().createdAt)
+        // Nunca datos de tarjeta: la donación se hace fuera de la app.
+        && !data().keys().hasAny(['cardNumber', 'cvv', 'pan', 'card']);
+      // Quien dona solo dice «ya la hice» y deja su referencia.
+      allow update: if signedIn() && resource.data.donorId == uid()
+        && resource.data.status == 'pendiente'
+        && changedOnly(['status', 'donorNote', 'declaredAt'])
+        && data().status == 'por-verificar';
+      // La Fundación confirma o cancela.
+      allow update: if isOwner() && changedOnly(['status', 'confirmedAt'])
+        && data().status in ['completada', 'cancelada', 'por-verificar', 'pendiente'];
+    }
+
+    // --------------------------------------------- avisos masivos y reportes
+
+    match /campaigns/{id} {
+      allow read, write: if isAdmin();
+    }
+    match /autoRules/{id} {
+      allow read, write: if isAdmin();
+    }
+
+    // Dispositivos web suscritos al versículo del día (workers/push los lee con la cuenta de servicio).
+    // Cada quien registra o borra solo el suyo; nadie los lee desde la app.
+    match /pushTokens/{token} {
+      allow create, update: if signedIn() && token.size() <= 400
+        && data().keys().hasOnly(['uid', 'platform', 'updatedAt'])
+        && data().uid == uid() && str(data().platform, 1, 20) && nowish(data().updatedAt);
+      allow delete: if signedIn() && resource.data.uid == uid();
+    }
+
+    match /reports/{id} {
+      allow create: if signedIn() && data().reportedBy == uid() && str(data().reason, 1, 500);
+      allow read, update: if isAdmin() || canModerate();
+    }
+
+    // Sugerencias y fallas: las fallas también sin sesión, para que un error
+    // al entrar pueda reportarse. La captura (base64 comprimida) cabe holgada
+    // en el límite de 1 MB del documento.
+    match /feedback/{id} {
+      allow create: if data().keys().hasOnly(['type', 'message', 'screen', 'userId', 'device', 'screenshot', 'createdAt'])
+        && data().type in ['bug', 'idea']
+        && (data().type == 'bug' || signedIn())
+        && str(data().message, 1, 4000)
+        && optStr(data(), 'screen', 120)
+        && optStr(data(), 'device', 400)
+        && (!('screenshot' in data()) || (str(data().screenshot, 1, 700000) && data().screenshot.matches('data:image/jpeg;base64,.*')))
+        && nowish(data().createdAt)
+        && (signedIn() ? data().get('userId', null) == uid() : data().get('userId', null) == null);
+      allow read, delete: if isAdmin();
+    }
+  }
+}

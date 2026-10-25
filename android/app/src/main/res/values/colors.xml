@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Mismo fondo que la aplicación: al abrir no hay salto de color. -->
+    <color name="heseriaBackground">#0F1117</color>
+    <color name="heseriaPrimary">#22D3EE</color>
+    <color name="heseriaPrimaryDark">#0F1117</color>
+</resources>

@@ -1,0 +1,32 @@
+node_modules
+dist
+.DS_Store
+*.local
+
+# Solo para desarrollo local con emuladores
+tests/cuentas-emulador.json
+
+# APKs y compilaciones: se generan, no se guardan
+entrega/
+*.apk
+*.aab
+tsconfig.tsbuildinfo
+
+# Registros de los emuladores de Firebase
+*-debug.log
+
+# Secretos: nunca al repositorio
+.env
+.env.*.local
+*.keystore
+!android/app/heseria.keystore
+server/credentials/*
+!server/credentials/README.md
+
+# Biblias con derechos de autor: no van al repositorio público (scripts/descargar-biblias.mjs)
+biblias/
+public/biblia/rvr1960/
+public/biblia/ntv/
+public/biblia/lbla/
+public/biblia/dhh/
+public/biblia/tla/

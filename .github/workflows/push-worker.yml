@@ -1,0 +1,43 @@
+# Publica el servidor push (workers/push) en Cloudflare Workers, plan gratuito.
+# Secretos del repositorio (Settings → Secrets and variables → Actions):
+#   CLOUDFLARE_API_TOKEN   token con la plantilla «Edit Cloudflare Workers»
+#   CLOUDFLARE_ACCOUNT_ID  id de la cuenta de Cloudflare
+#   FIREBASE_SERVICE_ACCOUNT_HESERIA  (ya existe) se guarda como secreto del Worker
+name: Servidor push
+
+on:
+  push:
+    branches: [main]
+    paths: ['workers/push/**', 'src/data/daily-verses.ts', '.github/workflows/push-worker.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Publicar en Cloudflare
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_HESERIA }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Faltan los secretos de Cloudflare
+        if: env.CLOUDFLARE_API_TOKEN == '' || env.CLOUDFLARE_ACCOUNT_ID == ''
+        run: |
+          echo "::error::Agrega CLOUDFLARE_API_TOKEN y CLOUDFLARE_ACCOUNT_ID en Settings → Secrets and variables → Actions."
+          exit 1
+      - name: Publicar Worker y su secreto
+        working-directory: workers/push
+        run: |
+          set -o pipefail
+          npx --yes wrangler@4 deploy | tee deploy.log
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" | npx --yes wrangler@4 secret put FIREBASE_SERVICE_ACCOUNT
+          echo "### Servidor push" >> "$GITHUB_STEP_SUMMARY"
+          grep -o 'https://[^ ]*workers.dev' deploy.log | head -1 >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "943591056279",
+    "project_id": "heseria-app",
+    "storage_bucket": "heseria-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:943591056279:android:84b3259e327adaac6edad2",
+        "android_client_info": {
+          "package_name": "app.heseria.mobile"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "943591056279-cdu1lv243cra29v3a26v0n1sbr0ielus.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "app.heseria.mobile",
+            "certificate_hash": "7247eeeb7506d4dbb115bb26977ab1be24f19f64"
+          }
+        },
+        {
+          "client_id": "943591056279-m9qlhfh1p9h8na944k70o3l51n0n8s83.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDh3_faB1hKUZi2DBGhMU6b4O9dRqxz9CM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "943591056279-m9qlhfh1p9h8na944k70o3l51n0n8s83.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

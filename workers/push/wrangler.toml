@@ -1,0 +1,13 @@
+# Versículo del día por push para la web/PWA (Cloudflare Workers, plan gratuito).
+# Se publica desde GitHub Actions (.github/workflows/push-worker.yml).
+# Secreto del Worker: FIREBASE_SERVICE_ACCOUNT (la misma clave de heseria-app que usa «Publicar»).
+name = "heseria-push"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+
+[vars]
+SITE = "https://heseria.web.app"
+
+# 13:00 UTC = 7:00 en Guatemala, la misma hora que el aviso local del APK.
+[triggers]
+crons = ["0 13 * * *"]

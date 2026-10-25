@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="es" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <link rel="icon" type="image/png" href="/icon-192.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#0F1117" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Heseria" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>Heseria — Un ecosistema digital para vivir la fe</title>
+    <meta
+      name="description"
+      content="Biblia, devocionales, música, cursos, iglesias, comunidad e impacto social en una sola plataforma."
+    />
+    <meta property="og:title" content="Heseria" />
+    <meta
+      property="og:description"
+      content="Un ecosistema digital para vivir, aprender, compartir y servir la fe."
+    />
+    <meta property="og:type" content="website" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=Space+Grotesk:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <!--
+      Teléfonos muy viejos: Firestore necesita BigInt y módulos. Si faltan, en vez de una pantalla en
+      blanco se explica cómo actualizar (estilos con !important por el plugin de capas de CSS).
+    -->
+    <script>
+      if (typeof BigInt === "undefined" || !("fetch" in window) || !("noModule" in document.createElement("script"))) {
+        document.getElementById("root").innerHTML =
+          '<div class="old" style="font-family:sans-serif!important;padding:32px 20px!important;max-width:420px!important;margin:auto!important;color:#fff!important;background:#0F1117!important;min-height:100vh!important">' +
+          '<h1 style="font-size:22px!important">Tu navegador necesita actualizarse</h1>' +
+          '<p style="line-height:1.5!important">Heseria necesita una versión más reciente de Chrome o de Android System WebView.</p>' +
+          '<p><a style="color:#22d3ee!important" href="https://play.google.com/store/apps/details?id=com.android.chrome">Actualizar Chrome</a></p>' +
+          '<p><a style="color:#22d3ee!important" href="https://play.google.com/store/apps/details?id=com.google.android.webview">Actualizar Android System WebView</a></p></div>';
+      }
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

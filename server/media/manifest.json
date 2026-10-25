@@ -1,0 +1,50 @@
+[
+  {
+    "file": "cielo-abierto.mp3",
+    "id": "media-song-1",
+    "kind": "song",
+    "title": "Cielo abierto",
+    "subtitle": "Heseria Estudio",
+    "category": "Adoración",
+    "description": "Pista instrumental original, sintetizada para probar la reproducción de audio en la app.",
+    "color": "from-cyan-500/70 to-blue-700/70",
+    "durationSec": 97,
+    "provider": "direct-audio"
+  },
+  {
+    "file": "manantial.mp3",
+    "id": "media-song-2",
+    "kind": "song",
+    "title": "Manantial",
+    "subtitle": "Heseria Estudio",
+    "category": "Contemplativa",
+    "description": "Segunda pista original: más lenta, útil para probar la cola y el cambio de canción.",
+    "color": "from-teal-400/70 to-emerald-700/70",
+    "durationSec": 91,
+    "provider": "direct-audio"
+  },
+  {
+    "file": "adviento.mp3",
+    "id": "media-song-3",
+    "kind": "song",
+    "title": "Adviento",
+    "subtitle": "Heseria Estudio",
+    "category": "Instrumental",
+    "description": "Tema corto de treinta segundos. Es también la banda sonora del video de prueba.",
+    "color": "from-amber-400/70 to-orange-700/70",
+    "durationSec": 32,
+    "provider": "direct-audio"
+  },
+  {
+    "id": "media-video-1",
+    "kind": "video",
+    "file": "heseria-demo.mp4",
+    "provider": "direct-video",
+    "title": "Heseria — video de prueba",
+    "subtitle": "Equipo Heseria",
+    "category": "Institucional",
+    "description": "Video generado por el sistema: contador de tiempo, barra de progreso y pulso al ritmo, para comprobar reproducción, pausa y búsqueda.",
+    "durationSec": 30,
+    "color": "from-fuchsia-400/70 to-indigo-800/70"
+  }
+]

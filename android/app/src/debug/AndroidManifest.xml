@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Solo para compilaciones de depuración.
+
+  Permite tráfico HTTP sin cifrar para poder apuntar la app a un servidor de la
+  red local (http://192.168.x.x:4000) durante las pruebas. Las compilaciones de
+  publicación NO incluyen este archivo, así que exigen HTTPS.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application
+        android:usesCleartextTraffic="true"
+        tools:replace="android:usesCleartextTraffic" />
+</manifest>

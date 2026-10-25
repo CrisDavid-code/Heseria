@@ -1,0 +1,206 @@
+/**
+ * HESERIA — Devocionales.
+ *
+ *   node scripts/build-devotionals.mjs
+ *
+ * Contenido original del Equipo Heseria: una reflexión breve, una pregunta y
+ * una oración sobre un pasaje. El texto bíblico NO se escribe a mano: se toma
+ * de la Reina-Valera 1909 que va en la app, así la cita es exacta.
+ *
+ * Firmado como «Equipo Heseria», no con el nombre de un pastor inventado.
+ */
+import fs from "node:fs";
+
+const books = JSON.parse(fs.readFileSync("public/biblia/books.json", "utf8"));
+const nameOf = (id) => books.find((b) => b.id === id)?.name ?? id;
+
+function verse(book, chapter, from, to = from) {
+  const data = JSON.parse(fs.readFileSync(`public/biblia/rv1909/${book}.json`, "utf8"));
+  const verses = data[String(chapter)].slice(from - 1, to);
+  if (verses.length !== to - from + 1 || verses.some((v) => !v)) {
+    throw new Error(`No existe ${book} ${chapter}:${from}-${to}`);
+  }
+  const ref = `${nameOf(book)} ${chapter}:${from}${to > from ? `-${to}` : ""}`;
+  return { ref, text: verses.join(" ") };
+}
+
+// [título, [libro, cap, desde, hasta?], reflexión (párrafos), oración, temas]
+const D = [
+  ["Un amor que da", ["juan", 3, 16],
+    ["El versículo más conocido de la Biblia empieza por Dios, no por nosotros. Antes de cualquier esfuerzo nuestro, Dios ya amó y ya dio.",
+     "La fe no es ganarse ese amor: es recibirlo. Hoy no tienes que demostrar nada para ser amado. Descansa en lo que Dios ya hizo en Jesús y deja que eso cambie cómo tratas a otros."],
+    "Padre, gracias porque me amaste primero. Ayúdame a vivir hoy como alguien que ha recibido tanto. Amén.",
+    ["amor", "salvación"]],
+  ["El pastor que no falta", ["salmos", 23, 1, 3],
+    ["David escribió como alguien que conocía de ovejas: dependen por completo de quien las cuida. Decir «el Señor es mi pastor» es admitir que no puedo solo.",
+     "Ese reconocimiento no es debilidad, es paz. Si él guía, no tengo que cargar con todo el mapa. Solo con el siguiente paso."],
+    "Señor, tú eres mi pastor. Guíame hoy y dame descanso en ti. Amén.",
+    ["confianza", "paz"]],
+  ["Fuerza prestada", ["filipenses", 4, 13],
+    ["Pablo escribió esto desde la cárcel. No hablaba de lograr cualquier meta, sino de estar contento con poco o con mucho porque Cristo lo sostenía.",
+     "La fuerza que promete este versículo no es para impresionar a nadie: es para perseverar. ¿Dónde necesitas hoy constancia más que éxito?"],
+    "Jesús, dame tu fuerza para lo que hoy me toca, sea mucho o poco. Amén.",
+    ["fortaleza", "contentamiento"]],
+  ["No temas", ["isaias", 41, 10],
+    ["Dios no le dice a su pueblo «no habrá problemas», sino «yo estoy contigo». El miedo pierde fuerza cuando sabemos quién camina al lado.",
+     "Nombra el temor que traes hoy. Luego léelo otra vez junto a esta promesa: te esforzaré, te ayudaré, te sostendré."],
+    "Dios mío, pongo en tus manos este temor. Sostenme con tu diestra. Amén.",
+    ["miedo", "promesas"]],
+  ["Todo ayuda a bien", ["romanos", 8, 28],
+    ["Este versículo no dice que todo sea bueno. Dice que Dios obra en todo, incluso en lo que duele, para el bien de quienes lo aman.",
+     "A veces solo lo vemos mirando hacia atrás. Hoy puedes confiar aunque todavía no entiendas, porque el que obra es fiel."],
+    "Señor, no entiendo todo lo que pasa, pero confío en que tú obras. Amén.",
+    ["propósito", "confianza"]],
+  ["Planes de bien", ["jeremias", 29, 11],
+    ["Dios dio esta promesa a un pueblo en el exilio, lejos de casa, que tendría que esperar setenta años. Sus planes eran buenos, pero no inmediatos.",
+     "La esperanza cristiana sabe esperar. ¿Qué estás pidiendo que suceda ya? Entrégale también los tiempos."],
+    "Padre, tus pensamientos son de paz para mí. Enséñame a esperar en ti. Amén.",
+    ["esperanza", "paciencia"]],
+  ["Con todo el corazón", ["proverbios", 3, 5, 6],
+    ["Confiar en Dios no apaga nuestra inteligencia; la pone en su lugar. «No estribes en tu prudencia» significa no hacer de ella el cimiento.",
+     "Reconocerlo en todos tus caminos incluye los pequeños: cómo hablas, cómo gastas, cómo trabajas. Ahí también quiere guiarte."],
+    "Señor, quiero reconocerte en cada decisión de hoy. Endereza mis veredas. Amén.",
+    ["sabiduría", "dirección"]],
+  ["Venid a mí", ["mateo", 11, 28, 30],
+    ["Jesús no invita a los que lo tienen todo resuelto, sino a los cansados. Su yugo no es un peso más: es caminar a su ritmo.",
+     "¿Qué cansancio traes hoy? Llévalo a él en oración antes de seguir corriendo."],
+    "Jesús, vengo a ti cansado. Dame tu descanso y enséñame tu manera de vivir. Amén.",
+    ["descanso", "Jesús"]],
+  ["Esfuérzate", ["josue", 1, 9],
+    ["Josué heredó una tarea enorme: guiar al pueblo después de Moisés. Dios no le quitó el desafío; le dio su presencia.",
+     "El valor bíblico no es ausencia de miedo, es obediencia acompañada. Da hoy el paso que vienes posponiendo."],
+    "Dios, contigo puedo esforzarme. Dame valor para obedecer. Amén.",
+    ["valentía", "obediencia"]],
+  ["Amparo y fortaleza", ["salmos", 46, 1, 3],
+    ["El salmista imagina la tierra temblando y los montes cayendo al mar, y aun así dice: no temeremos. Su seguridad no está en lo que se ve.",
+     "Cuando todo se mueve, Dios no se mueve. Haz una pausa y repite despacio: Dios es mi amparo."],
+    "Señor, tú eres mi refugio cuando todo tiembla. Me escondo en ti. Amén.",
+    ["refugio", "paz"]],
+  ["Nueva criatura", ["2-corintios", 5, 17],
+    ["En Cristo no solo recibimos perdón: recibimos una vida nueva. Lo viejo no define quién eres ahora.",
+     "Quizá te pesa algo de tu pasado. Hoy Dios te recuerda que en Cristo eres una nueva creación. Vive desde esa identidad."],
+    "Gracias, Jesús, porque en ti soy nuevo. Ayúdame a vivir conforme a eso. Amén.",
+    ["identidad", "gracia"]],
+  ["Cristo vive en mí", ["galatas", 2, 20],
+    ["Pablo resume la vida cristiana en una frase: ya no vivo yo, Cristo vive en mí. No es perder la personalidad, es encontrarla en él.",
+     "Pregúntate hoy: ¿qué haría Cristo a través de mí en este lugar, con estas personas?"],
+    "Señor Jesús, vive en mí hoy. Que mis palabras y mis manos sean tuyas. Amén.",
+    ["entrega", "fe"]],
+  ["Por gracia", ["efesios", 2, 8, 9],
+    ["La salvación es un regalo. No se compra con buenas obras ni se pierde por un mal día. Viene de Dios por medio de la fe.",
+     "Eso nos libra del orgullo y de la culpa. Las buenas obras vienen después, como respuesta agradecida, no como pago."],
+    "Padre, gracias por tu gracia que no merezco. Que mi vida sea gratitud. Amén.",
+    ["gracia", "salvación"]],
+  ["Certeza de lo que se espera", ["hebreos", 11, 1],
+    ["La fe no es creer sin razones; es confiar en Dios por lo que ya ha mostrado ser. Hebreos 11 está lleno de personas que caminaron sin ver el final.",
+     "¿Qué promesa de Dios te cuesta creer hoy? Pídele una fe que siga caminando."],
+    "Señor, aumenta mi fe. Que confíe en ti aunque no vea todo. Amén.",
+    ["fe", "esperanza"]],
+  ["Él nos amó primero", ["1-juan", 4, 19],
+    ["Nuestro amor por Dios y por otros no nace de nosotros: es respuesta. Amamos porque fuimos amados.",
+     "Si hoy te cuesta amar a alguien, vuelve primero al amor que Dios te tiene. De ahí sale la fuerza para perdonar y servir."],
+    "Dios, lléname de tu amor para que pueda amar a otros. Amén.",
+    ["amor", "perdón"]],
+  ["Una mente renovada", ["romanos", 12, 1, 2],
+    ["Pablo nos llama a no adaptarnos al molde del mundo, sino a dejarnos transformar desde adentro, por la renovación de la mente.",
+     "Lo que pensamos moldea lo que hacemos. ¿Qué ideas necesitas hoy reemplazar con la verdad de Dios?"],
+    "Señor, renueva mi mente. Quiero conocer y hacer tu voluntad. Amén.",
+    ["transformación", "mente"]],
+  ["Lámpara a mis pies", ["salmos", 119, 105],
+    ["Una lámpara antigua no iluminaba todo el camino, solo el siguiente paso. Así suele guiar la Palabra de Dios.",
+     "Lee hoy un pasaje con calma y pide luz para el siguiente paso, no para toda la vida."],
+    "Señor, que tu Palabra alumbre mi camino hoy. Amén.",
+    ["Biblia", "dirección"]],
+  ["Primero el reino", ["mateo", 6, 31, 33],
+    ["Jesús no desprecia nuestras necesidades: dice que el Padre sabe que las tenemos. Pero nos invita a ordenar las prioridades.",
+     "Buscar primero su reino es decidir hoy qué va en primer lugar: tu tiempo, tus planes, tu dinero."],
+    "Padre, quiero buscar primero tu reino. Confío en que tú suplirás lo demás. Amén.",
+    ["prioridades", "provisión"]],
+  ["El camino", ["juan", 14, 6],
+    ["Jesús no dijo que conocía el camino, sino que él es el camino. La fe cristiana no es un método, es una persona.",
+     "Seguirle hoy significa escucharle, obedecerle y confiar en que lleva al Padre."],
+    "Jesús, tú eres el camino, la verdad y la vida. Quiero seguirte. Amén.",
+    ["Jesús", "verdad"]],
+  ["El amor es paciente", ["1-corintios", 13, 4, 7],
+    ["Este pasaje no fue escrito para bodas, sino para una iglesia dividida. Describe un amor que se nota en lo cotidiano.",
+     "Cambia la palabra «amor» por tu nombre al leerlo. ¿Dónde te invita Dios hoy a ser más paciente?"],
+    "Señor, forma en mí un amor paciente y bondadoso. Amén.",
+    ["amor", "relaciones"]],
+  ["Alas como águilas", ["isaias", 40, 29, 31],
+    ["Dios da fuerza al cansado. No promete que nunca nos cansemos, sino que esperar en él renueva lo que el esfuerzo desgasta.",
+     "Esperar en Dios es activo: orar, confiar, obedecer. Hoy dale tu cansancio."],
+    "Señor, renueva mis fuerzas. Espero en ti. Amén.",
+    ["fortaleza", "esperanza"]],
+  ["Nuevas cada mañana", ["lamentaciones", 3, 22, 23],
+    ["Jeremías escribió esto entre ruinas. En medio del dolor recordó algo firme: la fidelidad de Dios no se acaba.",
+     "Cada mañana es una oportunidad nueva para recibir su misericordia. Empieza hoy agradeciendo una."],
+    "Gracias, Dios, porque tus misericordias son nuevas cada mañana. Amén.",
+    ["fidelidad", "gratitud"]],
+  ["Encomienda tu camino", ["salmos", 37, 4, 5],
+    ["Deleitarse en Dios cambia lo que deseamos. No es un truco para conseguir cosas, es aprender a querer lo que él quiere.",
+     "Encomendar es soltar. ¿Qué plan estás sosteniendo con demasiada fuerza?"],
+    "Señor, te encomiendo mi camino. Haz tú. Amén.",
+    ["confianza", "planes"]],
+  ["Siendo aún pecadores", ["romanos", 5, 8],
+    ["Dios no esperó a que mejoráramos para amarnos. Cristo murió por nosotros cuando todavía estábamos lejos.",
+     "Ese amor te alcanza hoy, también en tus fallas. No huyas de Dios por tu pecado: corre hacia él."],
+    "Padre, gracias por amarme en mi peor momento. Vuelvo a ti. Amén.",
+    ["gracia", "perdón"]],
+  ["Por nada estéis afanosos", ["filipenses", 4, 6, 7],
+    ["Pablo no niega las preocupaciones; nos dice qué hacer con ellas: convertirlas en oración y agradecimiento.",
+     "Escribe tus preocupaciones de hoy y entrégalas una por una. La paz de Dios guardará tu corazón."],
+    "Dios, te entrego lo que me preocupa. Guarda mi corazón con tu paz. Amén.",
+    ["ansiedad", "oración"]],
+  ["Permanecer", ["juan", 15, 4, 5],
+    ["Una rama no se esfuerza por dar fruto: permanece unida a la vid. El fruto es consecuencia de la unión.",
+     "Permanecer es volver una y otra vez a Jesús en el día: en la oración, en su Palabra, en la obediencia."],
+    "Jesús, quiero permanecer en ti. Da fruto en mi vida. Amén.",
+    ["comunión", "fruto"]],
+  ["Pide sabiduría", ["santiago", 1, 5],
+    ["Dios no reprocha a quien pide sabiduría. No hay pregunta demasiado pequeña ni decisión demasiado grande para llevarle.",
+     "¿Qué decisión tienes pendiente? Pide sabiduría con fe y busca consejo en su Palabra."],
+    "Señor, necesito sabiduría. Dámela con generosidad. Amén.",
+    ["sabiduría", "decisiones"]],
+  ["Echa tu ansiedad", ["1-pedro", 5, 6, 7],
+    ["Echar la ansiedad sobre Dios es un acto de humildad: reconocer que no controlamos todo y que él sí cuida de nosotros.",
+     "Hoy, cada vez que vuelva una preocupación, repite: él tiene cuidado de mí."],
+    "Padre, echo sobre ti mi ansiedad. Gracias porque cuidas de mí. Amén.",
+    ["ansiedad", "humildad"]],
+  ["Lo que pide el Señor", ["miqueas", 6, 8],
+    ["Dios no busca grandes sacrificios, sino una vida sencilla y fiel: hacer justicia, amar la misericordia y caminar humildemente con él.",
+     "Elige hoy una forma concreta de practicar la justicia o la misericordia con alguien cercano."],
+    "Señor, enséñame a hacer justicia, amar la misericordia y caminar contigo. Amén.",
+    ["justicia", "humildad"]],
+  ["Espíritu de poder", ["2-timoteo", 1, 7],
+    ["El temor no viene de Dios. Él nos da un espíritu de poder para servir, de amor para relacionarnos y de dominio propio para vivir con orden.",
+     "¿Dónde te está frenando el temor? Pide al Espíritu Santo valor para obedecer."],
+    "Espíritu Santo, lléname de poder, amor y dominio propio. Amén.",
+    ["valentía", "Espíritu Santo"]],
+  ["Él enjugará toda lágrima", ["apocalipsis", 21, 3, 4],
+    ["La historia no termina en el dolor. Dios promete morar con su pueblo y secar toda lágrima: no habrá más muerte ni llanto.",
+     "Esa esperanza no niega la tristeza de hoy, pero le pone un horizonte. Lo que duele no tiene la última palabra."],
+    "Señor, gracias por la esperanza de un mundo nuevo. Sostenme mientras llega. Amén.",
+    ["esperanza", "consuelo"]],
+];
+
+const devotionals = D.map(([title, [book, ch, from, to], reflection, prayer, topics], i) => {
+  const v = verse(book, ch, from, to);
+  return {
+    id: `dev-${String(i + 1).padStart(2, "0")}`,
+    title,
+    authorId: "heseria",
+    author: "Equipo Heseria",
+    date: `dia-${String(i + 1).padStart(2, "0")}`,
+    minutes: 3,
+    verse: v,
+    reflection,
+    prayer,
+    topics,
+    // Pregunta para pensar, que se muestra al final.
+    question: reflection.at(-1).includes("?") ? "" : "¿Qué te está diciendo Dios hoy con este pasaje?",
+  };
+});
+
+fs.writeFileSync("src/content/devotionals.json", JSON.stringify(devotionals));
+console.log(`${devotionals.length} devocionales`);
+for (const d of devotionals.slice(0, 3)) console.log(`· ${d.title} — ${d.verse.ref}: ${d.verse.text.slice(0, 80)}…`);

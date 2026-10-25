@@ -1,0 +1,153 @@
+# Publicación de Heseria para todos los dispositivos:
+#   · Web/PWA en Firebase Hosting (https://heseria.web.app, también heseria-app.web.app): Android, iPhone y computadora.
+#   · Reglas de Firestore (antes que la web, por si usa campos nuevos).
+#   · APK de Android en https://heseria.web.app/descargar/heseria.apk (+ version.json para avisar de versiones nuevas).
+#
+# Requiere el secreto de GitHub FIREBASE_SERVICE_ACCOUNT_HESERIA: la clave JSON de una cuenta
+# de servicio del proyecto heseria-app (Firebase → Configuración → Cuentas de servicio →
+# Generar nueva clave privada). Nunca se guarda en el repositorio.
+name: Publicar
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: publicar
+  cancel-in-progress: false
+
+env:
+  PROJECT: heseria-app
+
+jobs:
+  web:
+    needs: android
+    name: Reglas + web (PWA)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Credenciales (solo durante este trabajo)
+        env:
+          CLAVE: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_HESERIA }}
+        run: |
+          printf '%s' "$CLAVE" > "$RUNNER_TEMP/clave.json"
+          test -s "$RUNNER_TEMP/clave.json" || { echo "::error::Falta el secreto FIREBASE_SERVICE_ACCOUNT_HESERIA"; exit 1; }
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/clave.json" >> "$GITHUB_ENV"
+      - name: App web de Firebase (se crea la primera vez)
+        run: |
+          APP=$(npx firebase apps:list WEB --project "$PROJECT" --json | jq -r '.result[0].appId // empty')
+          if [ -z "$APP" ]; then
+            APP=$(npx firebase apps:create WEB Heseria --project "$PROJECT" --json | jq -r '.result.appId')
+          fi
+          echo "App web: $APP"
+          # .local sobrescribe .env.production solo en este build (está en .gitignore).
+          echo "VITE_FIREBASE_APP_ID=$APP" > .env.production.local
+      - name: Base de datos Firestore (se crea la primera vez)
+        # Si la API está apagada, crearla requiere al dueño en la consola: se avisa y se sigue.
+        continue-on-error: true
+        run: |
+          if npx firebase firestore:databases:list --project "$PROJECT" 2>/dev/null | grep -q "(default)"; then
+            echo "Firestore ya existe."
+          else
+            npx firebase firestore:databases:create "(default)" --location nam5 --project "$PROJECT" --non-interactive \
+              || { echo "::error::Crea la base de datos en Firebase Console → Firestore Database → Crear base de datos (modo producción, nam5)."; exit 1; }
+          fi
+      - name: Huella del APK en Firebase (para «Entrar con Google» en Android)
+        # Llave fija android/app/heseria.keystore. Si ya está registrada, Firebase responde error y se sigue.
+        run: |
+          APP=1:943591056279:android:84b3259e327adaac6edad2
+          for SHA in 34:57:58:69:56:66:48:1B:D6:C8:04:44:50:78:72:6B:D7:94:F4:65 \
+                     4E:11:8F:15:D8:18:D2:7E:87:C7:BA:80:36:F4:7F:2C:6A:55:D4:FE:68:22:1E:E0:76:7D:8E:0D:50:F3:D7:21; do
+            npx firebase apps:android:sha:create "$APP" "$SHA" --project "$PROJECT" || echo "(ya registrada o sin permiso)"
+          done
+          npx firebase apps:android:sha:list "$APP" --project "$PROJECT" || true
+      - name: Publicar reglas de Firestore
+        id: reglas
+        # Si faltan permisos IAM, la web se publica igual y el trabajo termina en rojo al final.
+        continue-on-error: true
+        # Admin SDK primero (lección del skill); si la cuenta no tiene ese permiso,
+        # firebase-tools, que además activa las APIs que falten.
+        run: npm run deploy:rules || npx firebase deploy --only firestore:rules --project "$PROJECT" --non-interactive
+        env:
+          FIREBASE_PROJECT: ${{ env.PROJECT }}
+      - name: Contenido (devocionales, planes, cursos, iglesias y podcasts)
+        continue-on-error: true
+        run: node scripts/cargar-contenido.mjs
+        env:
+          FIREBASE_PROJECT: ${{ env.PROJECT }}
+      - name: Biblias protegidas (desde la web publicada)
+        run: node scripts/descargar-biblias.mjs
+      - run: npm run build
+        env:
+          VITE_APP_VERSION: 1.0.${{ github.run_number }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: apk
+          path: apk
+      - name: APK y versión dentro de la web (descarga pública, sin GitHub)
+        run: |
+          mkdir -p dist/descargar
+          cp apk/app-debug.apk dist/descargar/heseria.apk
+          echo '{"version":"1.0.${{ github.run_number }}","code":${{ github.run_number }},"url":"https://heseria.web.app/descargar/heseria.apk"}' > dist/version.json
+      - name: Sitio heseria.web.app (se crea la primera vez)
+        run: npx firebase hosting:sites:get heseria --project "$PROJECT" >/dev/null 2>&1 || npx firebase hosting:sites:create heseria --project "$PROJECT" --non-interactive
+      - name: Autorizar heseria.web.app para «Entrar con Google»
+        continue-on-error: true
+        run: node scripts/autorizar-dominios.cjs heseria.web.app heseria-app.web.app heseria-app.firebaseapp.com
+      - name: Publicar en Firebase Hosting
+        run: npx firebase deploy --only hosting --project "$PROJECT" --non-interactive
+      - run: rm -f "$RUNNER_TEMP/clave.json"
+        if: always()
+      - name: ¿Se publicaron las reglas?
+        if: steps.reglas.outcome == 'failure'
+        run: |
+          echo "::error::Las reglas no se publicaron: la cuenta de servicio necesita los roles «Administrador de Firebase Rules» y «Consumidor de Service Usage» en heseria-app (Google Cloud → IAM)."
+          exit 1
+
+  android:
+    name: APK para descargar
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+      - run: npm ci
+      - name: Biblias protegidas (desde la web publicada)
+        run: node scripts/descargar-biblias.mjs
+      - run: npm run build
+        env:
+          VITE_APP_VERSION: 1.0.${{ github.run_number }}
+      - run: npx cap sync android
+      - name: Compilar APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+        env:
+          # Siempre creciente: así el APK nuevo se instala encima del anterior.
+          VERSION_CODE: ${{ github.run_number }}
+          VERSION_NAME: 1.0.${{ github.run_number }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      - name: ¿Se firmó con la llave de Heseria?
+        env:
+          KS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          [ -n "$KS" ] || { echo "::error::Falta el secreto ANDROID_KEYSTORE_PASSWORD: sin él el APK no se podría actualizar encima."; exit 1; }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 3

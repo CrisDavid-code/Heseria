@@ -1,0 +1,381 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * HESERIA — Design System
+ * Dark-first. Cyan accent. Space Grotesk (display) + DM Sans (body).
+ * Tokens live in :root / .dark; @theme maps them to Tailwind utilities.
+ */
+
+@theme inline {
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+
+  --text-display: 3.25rem;
+  --text-display--line-height: 1.04;
+  --text-display--letter-spacing: -0.035em;
+  --text-title: 2rem;
+  --text-title--line-height: 1.12;
+  --text-title--letter-spacing: -0.028em;
+  --text-section: 1.25rem;
+  --text-section--line-height: 1.25;
+  --text-section--letter-spacing: -0.02em;
+
+  --shadow-soft: 0 1px 2px oklch(0 0 0 / 0.2), 0 8px 24px oklch(0 0 0 / 0.18);
+  --shadow-lift: 0 2px 6px oklch(0 0 0 / 0.25), 0 18px 48px oklch(0 0 0 / 0.28);
+}
+
+:root {
+  --radius: 0.875rem;
+
+  --background: oklch(0.985 0.004 250);
+  --foreground: oklch(0.19 0.02 260);
+  --surface: oklch(1 0 0);
+  --surface-2: oklch(0.965 0.006 250);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.19 0.02 260);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.19 0.02 260);
+  --primary: oklch(0.58 0.13 214);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.955 0.008 250);
+  --secondary-foreground: oklch(0.25 0.02 260);
+  --muted: oklch(0.955 0.008 250);
+  --muted-foreground: oklch(0.48 0.02 258);
+  --accent: oklch(0.93 0.03 210);
+  --accent-foreground: oklch(0.25 0.03 240);
+  --destructive: oklch(0.55 0.21 25);
+  --destructive-foreground: oklch(0.99 0 0);
+  --success: oklch(0.55 0.15 155);
+  --success-foreground: oklch(0.99 0 0);
+  --warning: oklch(0.68 0.15 75);
+  --warning-foreground: oklch(0.2 0.03 70);
+  --border: oklch(0.9 0.008 250);
+  --input: oklch(0.9 0.008 250);
+  --ring: oklch(0.58 0.13 214);
+  --chart-1: oklch(0.6 0.14 210);
+  --chart-2: oklch(0.63 0.13 165);
+  --chart-3: oklch(0.65 0.14 85);
+  --chart-4: oklch(0.57 0.16 300);
+  --chart-5: oklch(0.6 0.17 25);
+  --sidebar: oklch(0.98 0.005 250);
+  --sidebar-foreground: oklch(0.25 0.02 260);
+  --sidebar-border: oklch(0.91 0.008 250);
+}
+
+.dark {
+  --background: oklch(0.16 0.014 258);
+  --foreground: oklch(0.97 0.004 250);
+  --surface: oklch(0.2 0.016 258);
+  --surface-2: oklch(0.235 0.018 258);
+  --card: oklch(0.205 0.016 258);
+  --card-foreground: oklch(0.97 0.004 250);
+  --popover: oklch(0.215 0.018 258);
+  --popover-foreground: oklch(0.97 0.004 250);
+  --primary: oklch(0.78 0.13 200);
+  --primary-foreground: oklch(0.17 0.02 250);
+  --secondary: oklch(0.26 0.018 258);
+  --secondary-foreground: oklch(0.96 0.004 250);
+  --muted: oklch(0.26 0.018 258);
+  --muted-foreground: oklch(0.72 0.015 256);
+  --accent: oklch(0.3 0.03 220);
+  --accent-foreground: oklch(0.97 0.004 250);
+  --destructive: oklch(0.65 0.19 25);
+  --destructive-foreground: oklch(0.99 0 0);
+  --success: oklch(0.72 0.15 158);
+  --success-foreground: oklch(0.16 0.02 250);
+  --warning: oklch(0.8 0.15 78);
+  --warning-foreground: oklch(0.18 0.02 70);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 14%);
+  --ring: oklch(0.78 0.13 200);
+  --chart-1: oklch(0.78 0.13 200);
+  --chart-2: oklch(0.75 0.14 160);
+  --chart-3: oklch(0.8 0.14 85);
+  --chart-4: oklch(0.68 0.16 300);
+  --chart-5: oklch(0.7 0.17 25);
+  --sidebar: oklch(0.175 0.015 258);
+  --sidebar-foreground: oklch(0.9 0.008 250);
+  --sidebar-border: oklch(1 0 0 / 8%);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  /*
+   * Safe areas. On device Capacitor paints the web layer under the status bar
+   * and the gesture bar, so every fixed edge reads these instead of hardcoding
+   * padding. In a browser env() resolves to 0px and nothing changes.
+   */
+  :root {
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+    /* Minimum comfortable touch target (spec §28). */
+    --tap: 2.75rem;
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+    /* Native apps do not rubber-band the whole document. */
+    overscroll-behavior: none;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    overscroll-behavior-y: none;
+    /* Chrome should not feel like selectable web text; content opts back in. */
+    -webkit-user-select: none;
+    user-select: none;
+    /* Stop iOS from zooming the layout when the keyboard opens. */
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* Reading surfaces stay selectable: Bible, devotionals, posts, messages. */
+  p,
+  blockquote,
+  article,
+  [data-selectable] {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
+  /* iOS zooms any input whose font is under 16px on focus. */
+  input,
+  textarea,
+  select {
+    font-size: max(16px, 0.875rem);
+  }
+
+  button,
+  [role="button"],
+  a {
+    touch-action: manipulation;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.022em;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* ------------------------------------------------------------ safe areas */
+
+@utility pt-safe {
+  padding-top: var(--safe-top);
+}
+
+@utility pb-safe {
+  padding-bottom: var(--safe-bottom);
+}
+
+@utility px-safe {
+  padding-left: max(1rem, var(--safe-left));
+  padding-right: max(1rem, var(--safe-right));
+}
+
+@utility top-safe {
+  top: var(--safe-top);
+}
+
+@utility tap-target {
+  min-height: var(--tap);
+  min-width: var(--tap);
+}
+
+/** Horizontal scroller with momentum, edge-to-edge on phones. */
+/* Nada puede desbordar la pantalla a lo ancho: es una app de móvil. */
+html,
+body,
+#root {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+@utility scroll-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/**
+ * Carrusel horizontal de tarjetas.
+ *
+ * Cada hijo se fija a un ancho pensado para el móvil, de modo que se vean dos y
+ * media en pantalla: lo justo para que se entienda que hay más a la derecha.
+ * Sin este ancho, las tarjetas ocupaban todo el ancho disponible y la pantalla
+ * se volvía un scroll interminable.
+ */
+@utility rail {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  /* El carrusel llega hasta el borde aunque la pantalla tenga margen. */
+  margin-inline: calc(var(--spacing) * -4);
+  padding-inline: calc(var(--spacing) * 4);
+  padding-bottom: 0.25rem;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  & > * {
+    flex: 0 0 auto;
+    width: 9.5rem;
+    scroll-snap-align: start;
+  }
+}
+
+/** Variante ancha, para portadas apaisadas de video y película. */
+@utility rail-wide {
+  & > * {
+    width: 15rem;
+  }
+}
+
+/** Variante estrecha, para caras y avatares. */
+@utility rail-tight {
+  & > * {
+    width: 6.5rem;
+  }
+}
+
+@utility glass {
+  background: color-mix(in oklch, var(--surface) 72%, transparent);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+}
+
+@utility surface-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+}
+
+@utility hero-gradient {
+  background-image:
+    radial-gradient(120% 120% at 0% 0%, color-mix(in oklch, var(--primary) 26%, transparent) 0%, transparent 55%),
+    radial-gradient(100% 100% at 100% 0%, color-mix(in oklch, var(--chart-4) 20%, transparent) 0%, transparent 60%);
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@utility clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@utility clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@keyframes hs-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@utility animate-fade-up {
+  animation: hs-fade-up 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}

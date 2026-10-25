@@ -1,0 +1,38 @@
+{
+  "name": "heseria-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Heseria — API real (Express + SQLite)",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "seed": "node src/seed.js",
+    "reset": "node src/seed.js --reset",
+    "check:push": "node src/check-push.mjs",
+    "smoke": "node src/smoke.mjs",
+    "smoke:realtime": "node src/smoke-realtime.mjs",
+    "smoke:push": "node src/smoke-push.mjs",
+    "media": "node src/make-media.mjs",
+    "smoke:google": "node src/smoke-google.mjs",
+    "smoke:files": "node src/smoke-files.mjs",
+    "smoke:sources": "node src/smoke-sources.mjs",
+    "smoke:podcasts": "node src/smoke-podcasts.mjs",
+    "smoke:all": "npm run smoke && npm run smoke:files && npm run smoke:sources && npm run smoke:podcasts && npm run smoke:google && npm run smoke:realtime"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "better-sqlite3": "^12.2.0",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "fast-xml-parser": "^5.11.1",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.2",
+    "nodemailer": "^10.0.3",
+    "ws": "^8.21.3"
+  },
+  "devDependencies": {
+    "ffmpeg-static": "^5.3.0"
+  }
+}
