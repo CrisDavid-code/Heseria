@@ -108,7 +108,7 @@ jobs:
             --notes "Descarga heseria.apk en el teléfono y ábrelo (permite «instalar apps de origen desconocido»). Las versiones nuevas se instalan encima. En iPhone: abre https://heseria.web.app en Safari → Compartir → Agregar a pantalla de inicio."
       - name: Sitio heseria.web.app (se crea la primera vez)
         run: npx firebase hosting:sites:get heseria --project "$PROJECT" >/dev/null 2>&1 || npx firebase hosting:sites:create heseria --project "$PROJECT" --non-interactive
-      - name: Autorizar heseria.web.app para «Entrar con Google»
+      - name: Firebase Auth (correo y contraseña, dominios autorizados)
         continue-on-error: true
         run: node scripts/autorizar-dominios.cjs heseria.web.app heseria-app.web.app heseria-app.firebaseapp.com
       - name: Publicar en Firebase Hosting

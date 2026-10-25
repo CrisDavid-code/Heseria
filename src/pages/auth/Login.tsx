@@ -2,7 +2,6 @@ import { Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { GoogleSignIn } from "@/components/auth/GoogleSignIn";
 import { InstallInvite } from "@/components/InstallInvite";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/controls";
@@ -103,7 +102,6 @@ export default function Login() {
         </Button>
       </form>
 
-      <GoogleSignIn label="Entrar con Google" />
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
         ¿No tienes cuenta?{" "}

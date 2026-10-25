@@ -1,5 +1,5 @@
 import {
-  ArrowLeft, Camera, Image as ImageIcon, Info, Mic, Paperclip, PenSquare, Phone, Pin, Search, Send,
+  ArrowLeft, Camera, Flag, Image as ImageIcon, Info, Mic, Paperclip, PenSquare, Phone, Pin, Search, Send,
   Smile, Square, Video as VideoIcon, X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -15,7 +15,7 @@ import { haptic } from "@/native";
 import { FileRow } from "@/components/files/Files";
 import { canRecord, startRecording, type ActiveRecording } from "@/components/files/VoiceRecorder";
 import { fileService } from "@/services";
-import { messageService } from "@/services";
+import { communityService, messageService } from "@/services";
 import { onRealtimeEvent, sendRead, sendTyping } from "@/services/realtime";
 import { NewConversationSheet } from "@/components/community/NewConversation";
 import { startCall } from "@/store/call";
@@ -58,6 +58,7 @@ function ConversationView({
   const recordTick = useRef<number | undefined>(undefined);
   const fileInput = useRef<HTMLInputElement | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const [reactionFor, setReactionFor] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const lastTypingSent = useRef(0);
@@ -286,6 +287,14 @@ function ConversationView({
         </button>
         <button
           type="button"
+          onClick={() => setReportOpen(true)}
+          aria-label="Reportar conversación"
+          className="tap-target grid shrink-0 place-items-center rounded-full text-muted-foreground active:bg-secondary"
+        >
+          <Flag className="size-5" />
+        </button>
+        <button
+          type="button"
           onClick={() => setInfoOpen(true)}
           aria-label="Información de la conversación"
           className="tap-target grid shrink-0 place-items-center rounded-full text-muted-foreground active:bg-secondary"
@@ -301,7 +310,7 @@ function ConversationView({
         </div>
       )}
 
-      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto py-4">
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-none py-4">
         {history.loading ? (
           <ListSkeleton count={4} />
         ) : (
@@ -572,6 +581,31 @@ function ConversationView({
       </BottomSheet>
 
       {/* Conversation info */}
+      {/* Reportar (como en Chambas GT): llega a Administración → Moderación. */}
+      <BottomSheet open={reportOpen} onOpenChange={setReportOpen}>
+        <BottomSheetContent title="Reportar conversación" description="Cuéntanos qué pasa. La administración lo revisará.">
+          {REPORT_REASONS.map((r) => (
+            <SheetAction
+              key={r}
+              icon={Flag}
+              label={r}
+              onClick={async () => {
+                setReportOpen(false);
+                try {
+                  await communityService.report(`chat:${conversation.id}`, r);
+                  toast.success("Reporte enviado. Gracias por cuidar la comunidad.");
+                } catch (err) {
+                  toast.error(err instanceof Error ? err.message : "No se pudo enviar el reporte.");
+                }
+              }}
+            />
+          ))}
+          <p className="mt-3 px-1 text-xs text-muted-foreground">
+            Si estás en peligro, llama a la policía de tu país (en Guatemala, PNC 110).
+          </p>
+        </BottomSheetContent>
+      </BottomSheet>
+
       <BottomSheet open={infoOpen} onOpenChange={setInfoOpen}>
         <BottomSheetContent title={conversation.title} description="Información de la conversación">
           <div className="mb-4 flex flex-col items-center">
@@ -612,6 +646,14 @@ function ConversationView({
 }
 
 /* ------------------------------------------------------------------ list */
+
+const REPORT_REASONS = [
+  "Acoso o trato inapropiado",
+  "Fraude o pide dinero",
+  "Contenido ofensivo",
+  "Spam o publicidad",
+  "Otro motivo",
+];
 
 export default function Messages() {
   usePageMeta("Mensajes", "Tus conversaciones en Heseria.");
