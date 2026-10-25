@@ -1,8 +1,7 @@
 {
   "firestore": {
     "rules": "firestore.rules",
-    "indexes": "firestore.indexes.json",
-    "database": "heseria"
+    "indexes": "firestore.indexes.json"
   },
   "hosting": [
     {

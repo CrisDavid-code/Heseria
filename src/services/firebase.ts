@@ -38,7 +38,7 @@ export const isFirebaseConfigured = Boolean(config.apiKey && config.projectId &&
 export const usingEmulators =
   import.meta.env.DEV && import.meta.env.VITE_USE_EMULATORS === "true";
 
-/** La base de datos del proyecto se llama «heseria» (no «(default)»). Ver .env.production. */
+/** Id de la base de datos de Firestore (modo nativo). Ver .env.production. */
 const DATABASE = (import.meta.env.VITE_FIREBASE_DATABASE as string | undefined) || "(default)";
 
 let app: FirebaseApp | undefined;
