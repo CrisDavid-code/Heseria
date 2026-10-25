@@ -1,7 +1,7 @@
 # Publicación de Heseria para todos los dispositivos:
 #   · Web/PWA en Firebase Hosting (https://heseria.web.app, también heseria-app.web.app): Android, iPhone y computadora.
 #   · Reglas de Firestore (antes que la web, por si usa campos nuevos).
-#   · APK de Android en https://heseria.web.app/descargar/heseria.apk (+ version.json para avisar de versiones nuevas).
+#   · APK de Android en la Release pública «heseria-android» (+ version.json en la web para avisar de versiones nuevas).
 #
 # Requiere el secreto de GitHub FIREBASE_SERVICE_ACCOUNT_HESERIA: la clave JSON de una cuenta
 # de servicio del proyecto heseria-app (Firebase → Configuración → Cuentas de servicio →
@@ -23,6 +23,8 @@ env:
 jobs:
   web:
     needs: android
+    permissions:
+      contents: write
     name: Reglas + web (PWA)
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -53,6 +55,7 @@ jobs:
         # Si la API está apagada, crearla requiere al dueño en la consola: se avisa y se sigue.
         continue-on-error: true
         run: |
+          npx firebase firestore:databases:list --project "$PROJECT" || true
           if npx firebase firestore:databases:list --project "$PROJECT" 2>/dev/null | grep -q "(default)"; then
             echo "Firestore ya existe."
           else
@@ -91,11 +94,18 @@ jobs:
         with:
           name: apk
           path: apk
-      - name: APK y versión dentro de la web (descarga pública, sin GitHub)
+      - name: Versión del APK para el aviso de actualización
+        # El APK no puede ir en Hosting (Spark prohíbe ejecutables): va en la Release pública.
+        run: echo '{"version":"1.0.${{ github.run_number }}","code":${{ github.run_number }},"url":"https://github.com/CrisDavid-code/Heseria/releases/download/heseria-android/heseria.apk"}' > dist/version.json
+      - name: Publicar el APK en la Release «heseria-android»
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          mkdir -p dist/descargar
-          cp apk/app-debug.apk dist/descargar/heseria.apk
-          echo '{"version":"1.0.${{ github.run_number }}","code":${{ github.run_number }},"url":"https://heseria.web.app/descargar/heseria.apk"}' > dist/version.json
+          cp apk/app-debug.apk heseria.apk
+          gh release delete heseria-android --yes --cleanup-tag --repo "$GITHUB_REPOSITORY" || true
+          gh release create heseria-android heseria.apk --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "Heseria para Android (1.0.${{ github.run_number }})" \
+            --notes "Descarga heseria.apk en el teléfono y ábrelo (permite «instalar apps de origen desconocido»). Las versiones nuevas se instalan encima. En iPhone: abre https://heseria.web.app en Safari → Compartir → Agregar a pantalla de inicio."
       - name: Sitio heseria.web.app (se crea la primera vez)
         run: npx firebase hosting:sites:get heseria --project "$PROJECT" >/dev/null 2>&1 || npx firebase hosting:sites:create heseria --project "$PROJECT" --non-interactive
       - name: Autorizar heseria.web.app para «Entrar con Google»

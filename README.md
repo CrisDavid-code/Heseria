@@ -62,7 +62,7 @@ El workflow **Publicar** (`.github/workflows/deploy.yml`) corre en cada push a `
 
 | Dispositivo | Cómo se instala |
 | --- | --- |
-| Android | https://heseria.web.app/descargar/heseria.apk (se actualiza encima), o la PWA desde Chrome |
+| Android | https://github.com/CrisDavid-code/Heseria/releases/download/heseria-android/heseria.apk (se actualiza encima), o la PWA desde Chrome |
 | iPhone / iPad | `https://heseria.web.app` en Safari → Compartir → «Agregar a pantalla de inicio» |
 | Computadora | `https://heseria.web.app` (Chrome/Edge ofrecen «Instalar») |
 
