@@ -135,7 +135,7 @@ export default function Landing() {
           <InstallInvite className="mt-8 max-w-md" />
           <p className="mt-4 text-sm text-muted-foreground">
             ¿Prefieres la app de Android?{" "}
-            <a href="/descargar/heseria.apk" className="font-medium text-primary hover:underline">
+            <a href="https://github.com/CrisDavid-code/Heseria/releases/download/heseria-android/heseria.apk" className="font-medium text-primary hover:underline">
               Descargar APK
             </a>
           </p>
