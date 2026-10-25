@@ -7,6 +7,7 @@ compatibility_date = "2026-09-01"
 
 [vars]
 SITE = "https://heseria.web.app"
+DATABASE = "heseria"
 
 # 13:00 UTC = 7:00 en Guatemala, la misma hora que el aviso local del APK.
 [triggers]

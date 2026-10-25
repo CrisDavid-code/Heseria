@@ -56,10 +56,10 @@ jobs:
         continue-on-error: true
         run: |
           npx firebase firestore:databases:list --project "$PROJECT" || true
-          if npx firebase firestore:databases:list --project "$PROJECT" 2>/dev/null | grep -q "(default)"; then
+          if npx firebase firestore:databases:list --project "$PROJECT" 2>/dev/null | grep -q "databases/heseria"; then
             echo "Firestore ya existe."
           else
-            npx firebase firestore:databases:create "(default)" --location nam5 --project "$PROJECT" --non-interactive \
+            npx firebase firestore:databases:create heseria --location nam5 --project "$PROJECT" --non-interactive \
               || { echo "::error::Crea la base de datos en Firebase Console → Firestore Database → Crear base de datos (modo producción, nam5)."; exit 1; }
           fi
       - name: Huella del APK en Firebase (para «Entrar con Google» en Android)
