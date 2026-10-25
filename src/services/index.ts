@@ -16,15 +16,11 @@
 import { OWNER_EMAIL } from "@/lib/permissions";
 import {
   EmailAuthProvider,
-  GoogleAuthProvider,
   createUserWithEmailAndPassword,
   deleteUser,
   reauthenticateWithCredential,
   sendEmailVerification,
   sendPasswordResetEmail,
-  signInWithCredential,
-  signInWithPopup,
-  browserPopupRedirectResolver,
   signInWithEmailAndPassword,
   signOut,
   updatePassword,
@@ -231,12 +227,6 @@ export interface AuthService {
     onProgress?: (pct: number) => void,
   ): Promise<{ url: string; user: User }>;
   removePhoto(kind: "avatar" | "cover"): Promise<{ ok: boolean; user: User }>;
-  providers(): Promise<AuthProviders>;
-  /**
-   * Con `idToken` (app nativa: hoja de Google del plugin) o sin él (web: ventana de
-   * Firebase, que ya autoriza el dominio de Hosting). `null` si la persona la cierra.
-   */
-  google(idToken?: string | null): Promise<(Session & { created: boolean }) | null>;
   /** Vuelve a mandar el correo de verificación. */
   resendVerification(): Promise<{ ok: boolean }>;
 }
@@ -395,33 +385,6 @@ export const authService: AuthService = {
       }
       const snap = await getDoc(ref("users", id));
       return { ok: true, user: toUser(snap, auth.currentUser?.email ?? "")! };
-    }),
-
-  async providers() {
-    const clientId = (import.meta.env.VITE_GOOGLE_WEB_CLIENT_ID as string | undefined) ?? "";
-    return { password: true, google: { enabled: Boolean(clientId), clientId } };
-  },
-
-  google: (idToken) =>
-    friendly(async () => {
-      let account: AuthUser;
-      if (idToken) {
-        account = (await signInWithCredential(auth, GoogleAuthProvider.credential(idToken))).user;
-      } else {
-        try {
-          account = (await signInWithPopup(auth, new GoogleAuthProvider(), browserPopupRedirectResolver)).user;
-        } catch (err) {
-          const code = (err as { code?: string }).code ?? "";
-          if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") return null;
-          throw err;
-        }
-      }
-      const { user, created } = await ensureProfile(account);
-      if (user.status === "suspended") {
-        await signOut(auth);
-        throw new AppError("Esta cuenta está suspendida.");
-      }
-      return { ...(await sessionFor(account, user)), created };
     }),
 
   resendVerification: () =>

@@ -1,5 +1,7 @@
 import { StrictMode } from "react";
 import { Capacitor } from "@capacitor/core";
+import { listenForInstall } from "@/lib/install";
+import { watchErrors } from "@/lib/auto-report";
 import { createRoot } from "react-dom/client";
 import { App } from "@/App";
 import { ErrorBoundary } from "@/layouts/ErrorBoundary";
@@ -10,6 +12,8 @@ import "@/styles.css";
 // destello del tema equivocado. La sesión la recupera Firebase enseguida,
 // en BootGate.
 hydrateStores();
+listenForInstall();
+watchErrors();
 
 // Versión web instalable (PWA). Dentro del APK/iOS no hace falta: los archivos ya van en la app.
 if (import.meta.env.PROD && !Capacitor.isNativePlatform() && "serviceWorker" in navigator) {

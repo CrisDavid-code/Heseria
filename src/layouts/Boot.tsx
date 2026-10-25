@@ -154,7 +154,8 @@ export function RootRoute({ landing }: { landing: React.ReactNode }) {
 
   if (loading) return <Splash />;
   if (authenticated) return <Navigate to={isSuperAdmin(user) ? "/admin" : "/home"} replace />;
-  if (native) return <Navigate to="/login" replace />;
+  // En la app instalada la bienvenida se ve la primera vez; después abre directo el acceso.
+  if (native && localStorage.getItem("heseria.welcomed")) return <Navigate to="/login" replace />;
   return <>{landing}</>;
 }
 
