@@ -16,7 +16,7 @@ globalThis.DOMParser = new JSDOM("").window.DOMParser;
 const { parseFeed } = await import("../src/services/rss.ts");
 
 initializeApp({ projectId: process.env.FIREBASE_PROJECT || "heseria-app" });
-const db = getFirestore();
+const db = getFirestore(process.env.FIRESTORE_DATABASE || "heseria");
 const read = (name) => JSON.parse(fs.readFileSync(new URL(`../src/content/${name}.json`, import.meta.url), "utf8"));
 
 /** Mismo id que la app (services/index.ts → episodeId). */

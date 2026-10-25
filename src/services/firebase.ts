@@ -38,6 +38,9 @@ export const isFirebaseConfigured = Boolean(config.apiKey && config.projectId &&
 export const usingEmulators =
   import.meta.env.DEV && import.meta.env.VITE_USE_EMULATORS === "true";
 
+/** La base de datos del proyecto se llama «heseria» (no «(default)»). Ver .env.production. */
+const DATABASE = (import.meta.env.VITE_FIREBASE_DATABASE as string | undefined) || "(default)";
+
 let app: FirebaseApp | undefined;
 let authInstance: Auth | undefined;
 let dbInstance: Firestore | undefined;
@@ -52,7 +55,7 @@ if (isFirebaseConfigured) {
   // Caché local persistente: lo ya visto se abre sin conexión.
   dbInstance = initializeFirestore(app, {
     localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
-  });
+  }, DATABASE);
   if (usingEmulators) {
     connectAuthEmulator(authInstance, "http://127.0.0.1:9099", { disableWarnings: true });
     connectFirestoreEmulator(dbInstance, "127.0.0.1", 8080);

@@ -13,6 +13,7 @@ import { dailyVerse } from "../../../src/data/daily-verses";
 export interface Env {
   FIREBASE_SERVICE_ACCOUNT: string;
   SITE: string;
+  DATABASE: string;
 }
 
 interface ServiceAccount {
@@ -50,7 +51,7 @@ async function sendDaily(env: Env) {
   const sa = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT) as ServiceAccount;
   const token = await accessToken(sa);
   const msg = await todaysMessage(env);
-  const base = `https://firestore.googleapis.com/v1/projects/${sa.project_id}/databases/(default)/documents`;
+  const base = `https://firestore.googleapis.com/v1/projects/${sa.project_id}/databases/${env.DATABASE}/documents`;
   let pageToken = "";
   let sent = 0;
   do {
