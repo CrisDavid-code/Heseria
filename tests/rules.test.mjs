@@ -225,6 +225,17 @@ await allowed("Ana lo da de baja", () => deleteDoc(doc(ana.db, "pushTokens", "to
   await denied("Ana no agrega radios", () => setDoc(doc(ana.db, "radios", "r2"), radio));
   await denied("ni una URL sin https", () => setDoc(doc(owner.db, "radios", "r3"), { ...radio, streamUrl: "http://inseguro.example/live" }));
 }
+{
+  // Lista de estudiantes del curso: cada quien su fila; la ve el docente del curso.
+  await allowed("la administración crea un curso con su docente", () => setDoc(doc(owner.db, "courses", "cur1"), { title: "Fundamentos", instructorId: beto.uid, students: 0 }));
+  await allowed("Ana se anota en la lista del curso", () => setDoc(doc(ana.db, "courses/cur1/students", ana.uid), { name: "Ana Prueba", progress: 0, updatedAt: serverTimestamp() }));
+  await denied("Ana no anota a otra persona", () => setDoc(doc(ana.db, "courses/cur1/students", "otro"), { name: "X", progress: 0, updatedAt: serverTimestamp() }));
+  await denied("ni pone un progreso imposible", () => setDoc(doc(ana.db, "courses/cur1/students", ana.uid), { name: "Ana", progress: 500, updatedAt: serverTimestamp() }));
+  await allowed("el docente (Beto) ve a sus estudiantes", () => getDocs(collection(beto.db, "courses/cur1/students")));
+  const ceci2 = await person("ceci.estudiante@prueba.com");
+  await denied("otra persona no ve la lista del curso", () => getDocs(collection(ceci2.db, "courses/cur1/students")));
+  await deleteApp(ceci2.app);
+}
 await denied("un pastor no abre una colecta", () => setDoc(doc(beto.db, "foundationCases", "mi-colecta"), { title: "Ayuda para mí", goal: 1000 }));
 await denied("nadie cambia a dónde llega el dinero", () => setDoc(doc(beto.db, "settings", "payments"), { methods: [{ type: "paypal", handle: "estafador" }] }));
 await allowed("la Fundación configura sus métodos", () => setDoc(doc(owner.db, "settings", "payments"), { methods: [] }));

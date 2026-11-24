@@ -116,6 +116,7 @@ export function PlansList() {
 export function PlanDetail() {
   const { id = "" } = useParams();
   const plan = useAsync(() => planService.get(id), [id]);
+  const paused = useAsync(() => planService.paused(id), [id]);
   const library = useLibrary();
 
   const [done, setDone] = useState<number[]>([]);
@@ -164,9 +165,19 @@ export function PlanDetail() {
       <div className="flex flex-wrap gap-2.5">
         <Button
           className="flex-1"
-          onClick={() => toast.success("Plan iniciado. Te recordaremos cada mañana.")}
+          onClick={async () => {
+            if (paused.data) {
+              await planService.setPaused(p.id, false).catch(() => undefined);
+              paused.reload();
+              toast.success("Plan reanudado");
+            }
+            // Lleva al primer día sin completar.
+            const next = p.days.find((d) => !d.done && !done.includes(d.day));
+            if (!next) return void toast.success("¡Completaste este plan! Gloria a Dios.");
+            document.getElementById(`dia-${next.day}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+          }}
         >
-          Continuar el plan
+          {paused.data ? "Reanudar el plan" : completed ? "Continuar el plan" : "Empezar el plan"}
         </Button>
         <Button
           variant="outline"
@@ -177,14 +188,30 @@ export function PlanDetail() {
         >
           {saved ? "Guardado" : "Guardar"}
         </Button>
-        <Button
-          variant="outline"
-          aria-label="Recordatorio"
-          onClick={() => toast.success("Recordatorio diario a las 07:00")}
-        >
-          <Bell className="size-4" />
-        </Button>
       </div>
+      {completed > 0 && (
+        <div className="flex flex-wrap gap-2 text-sm">
+          {!paused.data && completed < p.days.length && (
+            <Button size="sm" variant="ghost" onClick={async () => {
+              await planService.setPaused(p.id, true).catch(() => toast.error("No se pudo pausar."));
+              paused.reload();
+              toast("Plan en pausa. Retómalo cuando quieras: tu progreso se guarda.");
+            }}>
+              Pausar plan
+            </Button>
+          )}
+          <Button size="sm" variant="ghost" onClick={async () => {
+            if (!confirm("¿Empezar el plan de nuevo? Se desmarcan los días completados.")) return;
+            await planService.restart(p.id).catch(() => toast.error("No se pudo reiniciar."));
+            setDone([]);
+            plan.reload();
+            paused.reload();
+          }}>
+            Empezar de nuevo
+          </Button>
+        </div>
+      )}
+      {paused.data && <p className="rounded-xl bg-surface-2 p-3 text-sm">Este plan está en pausa. Tu progreso está guardado.</p>}
 
       <section>
         <h2 className="mb-3 text-section font-semibold tracking-tight">Días del plan</h2>
@@ -192,7 +219,7 @@ export function PlanDetail() {
           {p.days.map((d) => {
             const isDone = d.done || done.includes(d.day);
             return (
-              <li key={d.day} className="surface-card p-4">
+              <li key={d.day} id={`dia-${d.day}`} className="surface-card p-4">
                 <div className="flex items-start gap-3">
                   <button
                     type="button"

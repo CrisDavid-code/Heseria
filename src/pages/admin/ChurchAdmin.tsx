@@ -3,7 +3,7 @@ import {
   MessageSquare, Mic2, Plus, Settings as SettingsIcon, UserPlus, Users,
 } from "lucide-react";
 import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
   AdminList, AdminSections, BreakdownChart, KpiRow, QuickActions, RecentActivity, TrendChart,
@@ -22,8 +22,9 @@ import { useAsync } from "@/hooks/useAsync";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import {
   analyticsService, churchService, courseService, eventService, groupService,
-  ministryService, prayerService, sermonService, videoService,
+  messageService, ministryService, notifyUser, prayerService, sermonService, videoService,
 } from "@/services";
+import type { Church as ChurchT } from "@/types";
 import { useScreen } from "@/store/screen";
 import { ROLE_LABELS } from "@/lib/permissions";
 import { formatDate, formatMoney, formatLength, pct } from "@/lib/utils";
@@ -156,6 +157,7 @@ export function ChurchAdminMembers() {
 
 export function ChurchAdminMemberDetail() {
   const { id = "" } = useParams();
+  const navigate = useNavigate();
   const church = useAsync(() => churchService.myChurch(), []);
   const members = useAsync(
     () => (church.data ? churchService.members(church.data.id) : Promise.resolve([])),
@@ -200,24 +202,23 @@ export function ChurchAdminMemberDetail() {
         ))}
       </dl>
 
-      <div className="grid grid-cols-2 gap-2.5">
-        <Button variant="outline" onClick={() => toast.success("Rol actualizado")}>
-          Cambiar rol
-        </Button>
-        <Button variant="outline" onClick={() => toast.success("Asignado al ministerio")}>
-          Asignar ministerio
-        </Button>
-        <Button variant="outline" onClick={() => toast.success("Mensaje enviado")}>
-          Enviar mensaje
-        </Button>
-        <Button
-          variant="outline"
-          className="text-destructive"
-          onClick={() => toast.success("Miembro desactivado")}
-        >
-          Desactivar
-        </Button>
-      </div>
+      <Button
+        full
+        variant="outline"
+        onClick={async () => {
+          try {
+            const c = await messageService.openWith(member.id);
+            navigate(`/messages?c=${c.id}`);
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "No se pudo abrir la conversación.");
+          }
+        }}
+      >
+        Enviar mensaje
+      </Button>
+      <p className="text-xs text-muted-foreground">
+        Los roles y la suspensión de cuentas los gestiona la administración de Heseria.
+      </p>
     </div>
   );
 }
@@ -442,42 +443,54 @@ export function ChurchAdminCourses() {
 }
 
 export function ChurchAdminMessages() {
-  usePageMeta("Comunicación", "Avisos y mensajes a la congregación.");
+  usePageMeta("Comunicación", "Avisos a la congregación.");
   useScreen({ title: "Comunicación", back: true, hideSections: true });
+  const church = useAsync(() => churchService.myChurch(), []);
+  const members = useAsync(() => (church.data ? churchService.members(church.data.id) : Promise.resolve([])), [church.data?.id]);
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [busy, setBusy] = useState(false);
 
+  /** El aviso llega de verdad a la campana de cada miembro (users/{id}/notifications). */
+  async function send() {
+    if (!church.data || !members.data?.length) return;
+    if (!confirm(`¿Enviar este aviso a ${members.data.length} miembros?`)) return;
+    setBusy(true);
+    let sent = 0;
+    for (const m of members.data) {
+      try {
+        await notifyUser(m.id, { category: "iglesia", title: `${church.data.name}: ${subject.trim()}`, body: body.trim(), href: "/my-church" });
+        sent++;
+      } catch {
+        /* se sigue con los demás */
+      }
+    }
+    setBusy(false);
+    setSubject("");
+    setBody("");
+    toast.success(`Aviso enviado a ${sent} de ${members.data.length} miembros`);
+  }
+
+  if (church.loading) return <DetailSkeleton />;
+  if (!church.data) return <p className="text-sm text-muted-foreground">No administras ninguna iglesia todavía.</p>;
   return (
-    <div className="space-y-5">
-      <section className="surface-card p-4">
-        <h2 className="text-sm font-semibold">Nuevo aviso</h2>
-        <div className="mt-3 space-y-3">
-          <Field label="Asunto" htmlFor="msg-subject">
-            <Input id="msg-subject" placeholder="Por ejemplo: cambio de horario del domingo" />
-          </Field>
-          <Field label="Mensaje" htmlFor="msg-body">
-            <Textarea id="msg-body" placeholder="Escribe el aviso para la congregación…" />
-          </Field>
-          <div className="grid grid-cols-2 gap-2.5">
-            <Button variant="outline" onClick={() => toast.success("Borrador guardado")}>
-              Guardar borrador
-            </Button>
-            <Button onClick={() => toast.success("Aviso enviado a 1.284 miembros")}>
-              <Mail className="size-4" /> Enviar
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      <section>
-        <h2 className="mb-3 text-section font-semibold tracking-tight">Avisos enviados</h2>
-        <AdminList
-          rows={[
-            { id: "m1", title: "Cambio de horario del culto", subtitle: "Enviado a 1.284 miembros", meta: "hace 2 d", status: { label: "Entregado", tone: "success" } },
-            { id: "m2", title: "Inscripciones al retiro de matrimonios", subtitle: "Enviado a 420 miembros", meta: "hace 5 d", status: { label: "Entregado", tone: "success" } },
-            { id: "m3", title: "Convocatoria de voluntarios", subtitle: "Borrador", meta: "hace 6 d", status: { label: "Borrador", tone: "warning" } },
-          ]}
-        />
-      </section>
-    </div>
+    <section className="surface-card p-4">
+      <h2 className="text-sm font-semibold">Nuevo aviso</h2>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Llega a la campana de los {members.data?.length ?? 0} miembros de {church.data.name}.
+      </p>
+      <div className="mt-3 space-y-3">
+        <Field label="Asunto" htmlFor="msg-subject" required>
+          <Input id="msg-subject" value={subject} maxLength={100} onChange={(e) => setSubject(e.target.value)} placeholder="Por ejemplo: cambio de horario del domingo" />
+        </Field>
+        <Field label="Mensaje" htmlFor="msg-body" required>
+          <Textarea id="msg-body" value={body} maxLength={400} onChange={(e) => setBody(e.target.value)} placeholder="Escribe el aviso para la congregación…" />
+        </Field>
+        <Button full loading={busy} disabled={!subject.trim() || !body.trim() || !members.data?.length} onClick={() => void send()}>
+          <Mail className="size-4" /> Enviar aviso
+        </Button>
+      </div>
+    </section>
   );
 }
 
@@ -506,7 +519,6 @@ export function ChurchAdminPrayer() {
           { key: "activas", label: "Activas", test: (r) => r.status?.label === "Activa" },
           { key: "respondidas", label: "Respondidas", test: (r) => r.status?.label === "Respondida" },
         ]}
-        onRowAction={() => toast.success("Petición asignada al equipo de oración")}
       />
     </div>
   );
@@ -516,68 +528,86 @@ export function ChurchAdminSettings() {
   usePageMeta("Configuración de la iglesia");
   useScreen({ title: "Configuración", back: true, hideSections: true });
   const church = useAsync(() => churchService.myChurch(), []);
-
   if (church.loading) return <DetailSkeleton />;
-  const c = church.data;
-  if (!c) return null;
+  if (!church.data) return <p className="text-sm text-muted-foreground">No administras ninguna iglesia todavía.</p>;
+  return <ChurchSettingsForm church={church.data} onSaved={church.reload} />;
+}
+
+/** Ficha de la iglesia: se guarda de verdad (las reglas solo dejan a su administración). */
+function ChurchSettingsForm({ church: c, onSaved }: { church: ChurchT; onSaved: () => void }) {
+  const [form, setForm] = useState({ name: c.name, denomination: c.denomination, city: c.city, description: c.description });
+  const [services, setServices] = useState(c.services.map((x) => ({ ...x })));
+  const [busy, setBusy] = useState(false);
+  const set = (k: keyof typeof form) => (e: { target: { value: string } }) => setForm({ ...form, [k]: e.target.value });
+  const edit = (i: number, patch: Partial<ChurchT["services"][number]>) =>
+    setServices(services.map((x, k) => (k === i ? { ...x, ...patch } : x)));
+
+  async function save() {
+    if (!form.name.trim()) return void toast.error("El nombre es obligatorio.");
+    setBusy(true);
+    try {
+      await churchService.update(c.id, { ...form, services });
+      toast.success("Datos de la iglesia guardados");
+      onSaved();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo guardar.");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <div className="space-y-5">
       <section className="surface-card p-4">
         <h2 className="mb-3 text-sm font-semibold">Datos de la iglesia</h2>
         <div className="space-y-3">
-          <Field label="Nombre" htmlFor="ch-name">
-            <Input id="ch-name" defaultValue={c.name} />
+          <Field label="Nombre" htmlFor="ch-name" required>
+            <Input id="ch-name" value={form.name} maxLength={120} onChange={set("name")} />
           </Field>
           <Field label="Denominación" htmlFor="ch-denom">
-            <Input id="ch-denom" defaultValue={c.denomination} />
+            <Input id="ch-denom" value={form.denomination} maxLength={80} onChange={set("denomination")} />
           </Field>
           <Field label="Ciudad" htmlFor="ch-city">
-            <Input id="ch-city" defaultValue={c.city} />
+            <Input id="ch-city" value={form.city} maxLength={80} onChange={set("city")} />
           </Field>
           <Field label="Descripción" htmlFor="ch-desc">
-            <Textarea id="ch-desc" defaultValue={c.description} />
+            <Textarea id="ch-desc" value={form.description} maxLength={2000} onChange={set("description")} />
           </Field>
-          <Button full onClick={() => toast.success("Datos actualizados")}>
-            Guardar cambios
-          </Button>
         </div>
       </section>
 
       <section className="surface-card p-4">
         <h2 className="mb-1 text-sm font-semibold">Horarios de servicio</h2>
-        <ul className="mt-2 divide-y divide-border">
-          {c.services.map((s) => (
-            <li key={`${s.day}-${s.time}`} className="flex items-center justify-between gap-3 py-3">
-              <span className="min-w-0">
-                <span className="block text-sm font-medium">{s.type}</span>
-                <span className="block text-xs text-muted-foreground">
-                  {s.day} · {s.time}
-                </span>
-              </span>
-              <Button size="sm" variant="ghost" onClick={() => toast.success("Horario editado")}>
-                Editar
-              </Button>
+        <ul className="mt-2 space-y-3">
+          {services.map((s, i) => (
+            <li key={i} className="space-y-2 rounded-xl border border-border p-3">
+              <div className="grid grid-cols-2 gap-2">
+                <Field label="Servicio" htmlFor={`sv-type-${i}`}>
+                  <Input id={`sv-type-${i}`} value={s.type} placeholder="Culto" onChange={(e) => edit(i, { type: e.target.value })} />
+                </Field>
+                <Field label="Día" htmlFor={`sv-day-${i}`}>
+                  <Input id={`sv-day-${i}`} value={s.day} placeholder="Domingo" onChange={(e) => edit(i, { day: e.target.value })} />
+                </Field>
+              </div>
+              <div className="flex items-end gap-2">
+                <Field label="Hora" htmlFor={`sv-time-${i}`}>
+                  <Input id={`sv-time-${i}`} type="time" value={s.time} onChange={(e) => edit(i, { time: e.target.value })} />
+                </Field>
+                <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setServices(services.filter((_, k) => k !== i))}>
+                  Quitar
+                </Button>
+              </div>
             </li>
           ))}
         </ul>
-        <Button variant="outline" full className="mt-3" onClick={() => toast.success("Horario añadido")}>
+        <Button variant="outline" full className="mt-3" onClick={() => setServices([...services, { type: "Culto", day: "Domingo", time: "09:00" }])}>
           <Plus className="size-4" /> Añadir horario
         </Button>
       </section>
 
-      <section className="surface-card p-4">
-        <h2 className="mb-1 text-sm font-semibold">Visibilidad</h2>
-        <SettingRow title="Aparecer en el directorio" description="Otros usuarios podrán encontrarte.">
-          <Switch defaultChecked aria-label="Aparecer en el directorio" />
-        </SettingRow>
-        <SettingRow title="Permitir solicitudes de membresía" description="Cualquiera puede pedir unirse.">
-          <Switch defaultChecked aria-label="Permitir solicitudes" />
-        </SettingRow>
-        <SettingRow title="Publicar sermones automáticamente" description="Se publican al subirlos.">
-          <Switch aria-label="Publicar automáticamente" />
-        </SettingRow>
-      </section>
+      <Button full size="lg" loading={busy} onClick={() => void save()}>
+        Guardar cambios
+      </Button>
     </div>
   );
 }

@@ -857,6 +857,8 @@ export interface ChurchService {
   members(churchId: ID): Promise<User[]>;
   nearby(query?: NearbyQuery): Promise<NearbyChurches>;
   denominations(): Promise<string[]>;
+  /** La administración de la iglesia actualiza su ficha (las reglas lo limitan a su adminId). */
+  update(id: ID, patch: Pick<Church, "name" | "denomination" | "city" | "description" | "services">): Promise<void>;
 }
 
 function toChurch(d: DocumentSnapshot<DocumentData>): Church | null {
@@ -966,6 +968,20 @@ export const churchService: ChurchService = {
 
   denominations: () =>
     friendly(async () => [...new Set((await allChurches()).map((c) => c.denomination))].sort()),
+  update: (id, patch) =>
+    friendly(() =>
+      updateDoc(ref("churches", id), {
+        name: patch.name.trim().slice(0, 120),
+        denomination: patch.denomination.trim().slice(0, 80),
+        city: patch.city.trim().slice(0, 80),
+        description: patch.description.trim().slice(0, 2000),
+        services: patch.services
+          .filter((x) => x.day.trim() && x.time.trim())
+          .slice(0, 20)
+          .map((x) => ({ day: x.day.trim().slice(0, 30), time: x.time.trim().slice(0, 20), type: x.type.trim().slice(0, 60) })),
+        updatedAt: serverTimestamp(),
+      }),
+    ),
 };
 
 /* ================================================================= bible */
@@ -1193,6 +1209,11 @@ export interface PlanService {
   list(category?: string): Promise<Plan[]>;
   get(id: ID): Promise<Plan | undefined>;
   markDay(id: ID, day: number): Promise<{ ok: boolean }>;
+  /** Pausado o no (se guarda en el progreso de la persona). */
+  paused(id: ID): Promise<boolean>;
+  setPaused(id: ID, paused: boolean): Promise<void>;
+  /** Empieza de nuevo: borra los días marcados. */
+  restart(id: ID): Promise<void>;
 }
 
 async function planDone(planId: string): Promise<number[]> {
@@ -1241,6 +1262,15 @@ export const planService: PlanService = {
       if (first) await updateDoc(ref("plans", id), { participants: increment(1) }).catch(() => undefined);
       return { ok: true };
     }),
+  paused: (id) =>
+    friendly(async () => {
+      const uid = myIdOrNull();
+      return uid ? Boolean((await getDoc(ref(`users/${uid}/planProgress`, id))).data()?.paused) : false;
+    }),
+  setPaused: (id, paused) =>
+    friendly(() => setDoc(ref(`users/${me()}/planProgress`, id), { paused, updatedAt: serverTimestamp() }, { merge: true })),
+  restart: (id) =>
+    friendly(() => setDoc(ref(`users/${me()}/planProgress`, id), { days: [], paused: false, updatedAt: serverTimestamp() }, { merge: true })),
 };
 
 function toPlanWith(p: Plan, done: number[]): Plan {
@@ -1619,6 +1649,38 @@ function toCourse(d: DocumentSnapshot<DocumentData>, completed: string[] = []): 
   };
 }
 
+/**
+ * Lista real de estudiantes del curso (courses/{id}/students/{uid}): la escribe el propio
+ * estudiante al inscribirse y al avanzar; solo la lee el docente del curso y la administración.
+ */
+async function writeRoster(courseId: string, progress: number) {
+  const account = auth.currentUser;
+  if (!account) return;
+  const profile = (await getDoc(ref("users", account.uid))).data();
+  await setDoc(
+    ref(`courses/${courseId}/students`, account.uid),
+    { name: String(profile?.name ?? account.displayName ?? "Estudiante").slice(0, 80), progress: Math.round(progress), updatedAt: serverTimestamp() },
+    { merge: true },
+  ).catch(() => undefined);
+}
+
+export interface CourseStudent { userId: ID; courseId: ID; courseTitle: string; name: string; progress: number }
+
+/** Estudiantes reales de los cursos de quien enseña. */
+export async function myStudents(): Promise<CourseStudent[]> {
+  return friendly(async () => {
+    const courses = await list(query(col("courses"), where("instructorId", "==", me())), (d) => toCourse(d));
+    const all = await Promise.all(
+      courses.map(async (c) =>
+        (await getDocs(col(`courses/${c.id}/students`))).docs.map((d) => ({
+          userId: d.id, courseId: c.id, courseTitle: c.title, name: String(d.data().name ?? ""), progress: Number(d.data().progress ?? 0),
+        })),
+      ),
+    );
+    return all.flat().sort((a, b) => a.name.localeCompare(b.name));
+  });
+}
+
 async function enrollment(courseId: string) {
   const uid = myIdOrNull();
   if (!uid) return null;
@@ -1650,6 +1712,7 @@ export const courseService: CourseService = {
       if ((await getDoc(enrollRef)).exists()) return { enrolled: true };
       await setDoc(enrollRef, { completedLessons: [], enrolledAt: serverTimestamp() });
       await updateDoc(ref("courses", id), { students: increment(1) }).catch(() => undefined);
+      await writeRoster(id, 0);
       return { enrolled: true };
     }),
   myCourses: () =>
@@ -1678,7 +1741,9 @@ export const courseService: CourseService = {
         { completedLessons: arrayUnion(lessonId), updatedAt: serverTimestamp() },
         { merge: true },
       );
-      return { progress: (await courseService.get(courseId))?.progress ?? 0 };
+      const progress = (await courseService.get(courseId))?.progress ?? 0;
+      await writeRoster(courseId, progress);
+      return { progress };
     }),
   save: (course) =>
     friendly(async () => {

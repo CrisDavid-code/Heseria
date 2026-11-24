@@ -232,6 +232,10 @@ export interface PlayerState {
   repeat: "off" | "one" | "all";
   expanded: boolean;
   liked: string[];
+  /** Velocidad de reproducción (podcasts y predicaciones). */
+  rate: number;
+  /** Hora (ms) a la que se pausa sola; null = sin temporizador. */
+  sleepAt: number | null;
 }
 
 export const trackFromSong = (song: Song): PlayerTrack => ({
@@ -253,7 +257,32 @@ export const playerStore = createStore<PlayerState>({
   repeat: "off",
   expanded: false,
   liked: [],
+  rate: 1,
+  sleepAt: null,
 });
+
+/* Progreso de cada audio largo (episodios, predicaciones): se continúa donde se quedó. */
+const POS_KEY = "heseria.audioPositions";
+export function savedPosition(trackId: string): number {
+  try {
+    return (JSON.parse(localStorage.getItem(POS_KEY) ?? "{}") as Record<string, number>)[trackId] ?? 0;
+  } catch {
+    return 0;
+  }
+}
+export function savePosition(trackId: string, sec: number | null) {
+  try {
+    const all = JSON.parse(localStorage.getItem(POS_KEY) ?? "{}") as Record<string, number>;
+    if (sec == null) delete all[trackId];
+    else all[trackId] = sec;
+    // Solo los 200 más recientes.
+    const keys = Object.keys(all);
+    for (const k of keys.slice(0, Math.max(0, keys.length - 200))) delete all[k];
+    localStorage.setItem(POS_KEY, JSON.stringify(all));
+  } catch {
+    /* sin almacenamiento */
+  }
+}
 
 export function usePlayer() {
   const state = useStore(playerStore, (s) => s);
@@ -295,6 +324,13 @@ export function usePlayer() {
     toggleShuffle() {
       playerStore.set({ shuffle: !playerStore.get().shuffle });
     },
+    cycleRate() {
+      const rates = [0.75, 1, 1.25, 1.5, 2];
+      playerStore.set({ rate: rates[(rates.indexOf(playerStore.get().rate) + 1) % rates.length] });
+    },
+    setSleep(minutes: number | null) {
+      playerStore.set({ sleepAt: minutes ? Date.now() + minutes * 60_000 : null });
+    },
     cycleRepeat() {
       const order = ["off", "one", "all"] as const;
       playerStore.set({ repeat: order[(order.indexOf(playerStore.get().repeat) + 1) % 3] });
@@ -317,6 +353,8 @@ export function usePlayer() {
 /** Avanza la reproducción un segundo. Lo llama un único intervalo en AppShell. */
 export function playerTick() {
   const s = playerStore.get();
+  // Temporizador de apagado.
+  if (s.sleepAt && Date.now() >= s.sleepAt) return playerStore.set({ playing: false, sleepAt: null });
   if (!s.playing || !s.queue.length) return;
   const current = s.queue[s.index];
   if (!current) return;

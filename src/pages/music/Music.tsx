@@ -12,7 +12,7 @@ import { Badge, Chip } from "@/components/ui/primitives";
 import { useAsync } from "@/hooks/useAsync";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { share, shareUrl } from "@/native";
-import { musicService } from "@/services";
+import { musicService, userService } from "@/services";
 import { trackFromSong, useLibrary, usePlayer } from "@/store";
 import { useScreen } from "@/store/screen";
 import { artists as allArtists } from "@/store/directory";
@@ -292,7 +292,14 @@ export function ArtistDetail() {
         <Button className="flex-1" onClick={() => songs.data && playAll(songs.data)}>
           <Play className="size-4 fill-current" /> Reproducir
         </Button>
-        <Button variant="outline" onClick={() => toast.success("Ahora sigues a este artista")}>
+        <Button variant="outline" onClick={async () => {
+          try {
+            const r = await userService.follow(a.id);
+            toast.success(r.following ? "Ahora sigues a este artista" : "Dejaste de seguir a este artista");
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "No se pudo seguir.");
+          }
+        }}>
           Seguir
         </Button>
         <Button

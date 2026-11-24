@@ -16,7 +16,8 @@ import { Badge, Field, Input, Progress, Textarea } from "@/components/ui/primiti
 import { FileLibrary } from "@/components/files/Files";
 import { useAsync } from "@/hooks/useAsync";
 import { usePageMeta } from "@/hooks/usePageMeta";
-import { analyticsService, courseService } from "@/services";
+import { analyticsService, courseService, messageService, myStudents } from "@/services";
+import { EmptyState } from "@/components/states";
 import { useSession } from "@/store";
 import { useScreen } from "@/store/screen";
 import { users } from "@/store/directory";
@@ -47,7 +48,7 @@ export function TeacherDashboard() {
       <QuickActions
         actions={[
           { label: "Nuevo curso", icon: Plus, href: "/teacher/courses/new" },
-          { label: "Subir lección", icon: Video, onClick: () => toast.success("Subida iniciada") },
+          { label: "Subir lección", icon: Video, href: "/teacher/courses" },
           { label: "Revisar tareas", icon: ClipboardList, href: "/teacher/assignments" },
           { label: "Certificados", icon: Award, href: "/teacher/certificates" },
         ]}
@@ -363,12 +364,6 @@ function CourseBuilder({ mode, courseId }: { mode: "new" | "edit"; courseId?: st
         )}
 
         <div className="space-y-0.5">
-          <SheetAction
-            icon={Award}
-            label="Emitir certificado al completar"
-            description="Se genera automáticamente"
-            onClick={() => toast.success("Certificado activado")}
-          />
         </div>
       </section>
 
@@ -468,9 +463,6 @@ export function TeacherCourseDetail() {
         <Button variant="outline" onClick={() => navigate("/teacher/students")}>
           Ver estudiantes
         </Button>
-        <Button variant="outline" onClick={() => toast.success("Curso despublicado")}>
-          Despublicar
-        </Button>
         <Button variant="outline" onClick={() => navigate(`/courses/${c.id}`)}>
           Ver como alumno
         </Button>
@@ -482,109 +474,61 @@ export function TeacherCourseDetail() {
 export function TeacherStudents() {
   usePageMeta("Estudiantes", "Progreso de tus estudiantes.");
   useScreen({ title: "Estudiantes", back: true, hideSections: true });
+  const navigate = useNavigate();
+  const students = useAsync(() => myStudents(), []);
 
-  const rows: AdminRow[] = users.slice(0, 20).map((u, i) => ({
-    id: u.id,
-    title: u.name,
-    subtitle: `${u.city} · progreso ${10 + ((i * 13) % 90)} %`,
-    meta: `${10 + ((i * 13) % 90)} %`,
-    color: u.color,
-    status:
-      i % 4 === 0
-        ? { label: "Completado", tone: "success" as const }
-        : { label: "En curso", tone: "primary" as const },
+  // Estudiantes reales de tus cursos y su avance real (courses/{id}/students).
+  const rows: AdminRow[] = (students.data ?? []).map((st) => ({
+    id: st.userId,
+    title: st.name,
+    subtitle: `${st.courseTitle} · progreso ${st.progress} %`,
+    meta: `${st.progress} %`,
+    status: st.progress >= 100 ? { label: "Completado", tone: "success" as const } : { label: "En curso", tone: "primary" as const },
   }));
 
+  if (students.loading) return <DetailSkeleton />;
+  if (!rows.length) {
+    return <EmptyState icon={GraduationCap} title="Aún no hay estudiantes" description="Cuando alguien se inscriba en uno de tus cursos, aparecerá aquí con su progreso." />;
+  }
   return (
     <AdminList
       rows={rows}
-      selectable
       filters={[
         { key: "curso", label: "En curso", test: (r) => r.status?.label === "En curso" },
         { key: "completo", label: "Completados", test: (r) => r.status?.label === "Completado" },
       ]}
       sorts={[{ key: "az", label: "Nombre (A–Z)", compare: (a, b) => a.title.localeCompare(b.title) }]}
-      onRowAction={() => toast.success("Mensaje enviado al estudiante")}
+      onRowAction={async (row) => {
+        try {
+          const c = await messageService.openWith(row.id);
+          navigate(`/messages?c=${c.id}`);
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : "No se pudo abrir la conversación.");
+        }
+      }}
     />
   );
 }
 
 export function TeacherAssignments() {
-  usePageMeta("Tareas", "Entregas pendientes de revisión.");
+  usePageMeta("Tareas");
   useScreen({ title: "Tareas", back: true, hideSections: true });
-
-  const rows: AdminRow[] = users.slice(0, 14).map((u, i) => ({
-    id: `as-${u.id}`,
-    title: `Entrega de ${u.name}`,
-    subtitle: ["Panorama bíblico", "Liderazgo de equipos", "Evangelismo relacional"][i % 3],
-    color: u.color,
-    status:
-      i % 3 === 0
-        ? { label: "Revisada", tone: "success" as const }
-        : { label: "Pendiente", tone: "warning" as const },
-  }));
-
-  return (
-    <AdminList
-      rows={rows}
-      filters={[
-        { key: "pend", label: "Pendientes", test: (r) => r.status?.label === "Pendiente" },
-        { key: "rev", label: "Revisadas", test: (r) => r.status?.label === "Revisada" },
-      ]}
-      onRowAction={() => toast.success("Tarea calificada")}
-    />
-  );
+  // Sin respaldo real todavía: se dice con claridad en vez de mostrar datos inventados.
+  return <EmptyState icon={GraduationCap} title="Función en preparación" description="Las tareas con entrega y calificación todavía no están disponibles. Mientras tanto, comparte material y conversa con tus estudiantes desde Mensajes." />;
 }
 
 export function TeacherEvaluations() {
-  usePageMeta("Evaluaciones", "Cuestionarios y resultados.");
+  usePageMeta("Evaluaciones");
   useScreen({ title: "Evaluaciones", back: true, hideSections: true });
-  const breakdown = useAsync(() => analyticsService.breakdown("teacher"), []);
-
-  const rows: AdminRow[] = [
-    { id: "ev1", title: "Cuestionario módulo 1", subtitle: "Panorama bíblico · 240 respuestas", meta: "84 %" },
-    { id: "ev2", title: "Evaluación final", subtitle: "Liderazgo de equipos · 118 respuestas", meta: "78 %" },
-    { id: "ev3", title: "Autoevaluación", subtitle: "Discipulado uno a uno · 96 respuestas", meta: "91 %" },
-    { id: "ev4", title: "Cuestionario módulo 2", subtitle: "Evangelismo relacional · 152 respuestas", meta: "88 %" },
-  ];
-
-  return (
-    <div className="space-y-5">
-      <BarsChart title="Promedio por evaluación" data={breakdown.data} />
-      <Button full onClick={() => toast.success("Evaluación creada")}>
-        <Plus className="size-4" /> Crear evaluación
-      </Button>
-      <AdminList rows={rows} onRowAction={() => toast.info("Abriendo resultados")} />
-    </div>
-  );
+  // Sin respaldo real todavía: se dice con claridad en vez de mostrar datos inventados.
+  return <EmptyState icon={GraduationCap} title="Función en preparación" description="Los cuestionarios con resultados todavía no están disponibles. El avance de cada estudiante se ve en Estudiantes." />;
 }
 
 export function TeacherCertificates() {
-  usePageMeta("Certificados", "Certificados emitidos a tus estudiantes.");
+  usePageMeta("Certificados");
   useScreen({ title: "Certificados", back: true, hideSections: true });
-
-  const rows: AdminRow[] = users.slice(0, 12).map((u, i) => ({
-    id: `cert-${u.id}`,
-    title: u.name,
-    subtitle: ["Panorama bíblico", "Evangelismo relacional", "Discipulado uno a uno"][i % 3],
-    meta: `HSR-${1000 + i}`,
-    color: u.color,
-    status:
-      i % 5 === 0
-        ? { label: "Pendiente", tone: "warning" as const }
-        : { label: "Emitido", tone: "success" as const },
-  }));
-
-  return (
-    <AdminList
-      rows={rows}
-      filters={[
-        { key: "emit", label: "Emitidos", test: (r) => r.status?.label === "Emitido" },
-        { key: "pend", label: "Pendientes", test: (r) => r.status?.label === "Pendiente" },
-      ]}
-      onRowAction={() => toast.success("Certificado emitido")}
-    />
-  );
+  // Sin respaldo real todavía: se dice con claridad en vez de mostrar datos inventados.
+  return <EmptyState icon={GraduationCap} title="Función en preparación" description="La emisión de certificados todavía no está disponible. Cuando se habilite, se generarán al completar cada curso." />;
 }
 
 export function TeacherAnalytics() {
