@@ -59,7 +59,7 @@ export function AcademyIndex() {
             Fórmate para servir mejor
           </h2>
           <p className="mt-1 text-sm text-white/80">
-            {courses.data?.length ?? 0} cursos con módulos, tareas y certificado.
+            {courses.data?.length ? `${courses.data.length} cursos con módulos, tareas y certificado.` : "Cursos con módulos, tareas y certificado."}
           </p>
         </div>
       </HeroMedia>

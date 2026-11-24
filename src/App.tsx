@@ -8,6 +8,7 @@ import { LoadingState } from "@/components/states";
 
 /* Public */
 const Landing = lazy(() => import("@/pages/Landing"));
+const VersePublic = lazy(() => import("@/pages/VersePublic"));
 const Login = lazy(() => import("@/pages/auth/Login"));
 const Register = lazy(() => import("@/pages/auth/Register"));
 const ForgotPassword = lazy(() => import("@/pages/auth/ForgotPassword"));
@@ -186,6 +187,7 @@ export function App() {
         <Routes>
           {/* Públicas */}
           <Route path="/" element={<RootRoute landing={<Landing />} />} />
+          <Route path="/v/:id" element={<VersePublic />} />
           <Route element={<AuthLayout />}>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />

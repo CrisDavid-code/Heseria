@@ -28,18 +28,23 @@ import { fold } from "@/lib/countries";
 import { cn } from "@/lib/utils";
 
 /** La invitación que acompaña a todo lo que sale de la app. */
-const INVITACION = "Descarga Heseria y lee la Biblia cada día · heseria.app";
+const INVITACION = "Descarga Heseria y lee la Biblia cada día · heseria.web.app";
 
 export function VerseShareSheet({
   open,
   onOpenChange,
   text,
   reference,
+  link = "/bible",
+  tab = "imagen",
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   text: string;
   reference: string;
+  /** Ruta que abre quien recibe el versículo (p. ej. /v/juan.3.16, pública). */
+  link?: string;
+  tab?: "imagen" | "texto" | "chat";
 }) {
   const [format, setFormat] = useState<Format>("cuadrado");
   const [background, setBackground] = useState<Background>(() => backgroundFor(reference));
@@ -87,7 +92,7 @@ export function VerseShareSheet({
     const how = await share({
       title: reference,
       text: conInvitacion,
-      url: shareUrl("/bible"),
+      url: shareUrl(link),
     });
     if (how === "clipboard") toast.success("Versículo copiado al portapapeles.");
     else if (how !== "failed") haptic("success");
@@ -106,7 +111,7 @@ export function VerseShareSheet({
     <BottomSheet open={open} onOpenChange={onOpenChange}>
       <BottomSheetContent title="Compartir versículo" description={reference} fullScreen>
         <div className="mx-auto max-w-md pb-4">
-          <Tabs defaultValue="imagen">
+          <Tabs key={tab} defaultValue={tab}>
             <TabsList>
               <TabsTrigger value="imagen">
                 <ImageIcon className="size-3.5" /> Imagen
@@ -194,6 +199,7 @@ export function VerseShareSheet({
                   <Share2 className="size-4" /> Compartir
                 </Button>
               </div>
+              <Networks text={`${plain}\n\n${INVITACION}`} url={shareUrl(link)} subject={reference} />
             </TabsContent>
 
             {/* --------------------------------------------------- chat */}
@@ -212,6 +218,40 @@ export function VerseShareSheet({
         </div>
       </BottomSheetContent>
     </BottomSheet>
+  );
+}
+
+/* ------------------------------------------------- redes y aplicaciones */
+
+/** Atajos directos a cada aplicación (en el teléfono abren la app instalada). */
+function Networks({ text, url, subject }: { text: string; url: string; subject: string }) {
+  const t = encodeURIComponent(`${text}\n${url}`);
+  const targets = [
+    { name: "WhatsApp", href: `https://wa.me/?text=${t}`, color: "bg-[#25D366]" },
+    { name: "Facebook", href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(text)}`, color: "bg-[#1877F2]" },
+    { name: "Telegram", href: `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`, color: "bg-[#229ED9]" },
+    { name: "X", href: `https://x.com/intent/post?text=${t}`, color: "bg-black" },
+    { name: "Correo", href: `mailto:?subject=${encodeURIComponent(subject)}&body=${t}`, color: "bg-slate-600" },
+    { name: "SMS", href: `sms:?&body=${t}`, color: "bg-emerald-700" },
+  ];
+  return (
+    <div className="mt-4">
+      <p className="mb-2 text-sm font-medium">Enviar por</p>
+      <div className="grid grid-cols-3 gap-2">
+        {targets.map((x) => (
+          <a
+            key={x.name}
+            href={x.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => haptic("light")}
+            className={cn("rounded-xl px-2 py-2.5 text-center text-xs font-semibold text-white", x.color)}
+          >
+            {x.name}
+          </a>
+        ))}
+      </div>
+    </div>
   );
 }
 

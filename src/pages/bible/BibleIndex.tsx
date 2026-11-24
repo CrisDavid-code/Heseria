@@ -9,6 +9,7 @@ import { useAsync } from "@/hooks/useAsync";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { bibleService, readingStateService } from "@/services";
 import { parseReference } from "@/lib/reference";
+import { DailyVerseCard } from "@/components/bible/DailyVerseCard";
 import { preferencesStore, usePreferences } from "@/store";
 import { useScreen } from "@/store/screen";
 import { cn } from "@/lib/utils";
@@ -44,7 +45,6 @@ export default function BibleIndex() {
   const { bibleVersion } = usePreferences();
   const books = useAsync(() => bibleService.books(), []);
   const versions = useAsync(() => bibleService.versions(), []);
-  const verse = useAsync(() => bibleService.verseOfTheDay(), []);
   const spot = useAsync(() => readingStateService.get(), []);
 
   const [query, setQuery] = useState("");
@@ -95,44 +95,15 @@ export default function BibleIndex() {
               Versión
             </span>
             <span className="block truncate text-sm font-medium">
-              {activeVersion?.abbr ?? "HSD"} · {activeVersion?.name ?? "Heseria Demo"}
+              {activeVersion ? `${activeVersion.abbr} · ${activeVersion.name}` : "Reina-Valera 1960"}
             </span>
           </span>
           <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
         </button>
       </div>
 
-      <Link
-        to="/bible/juan/3"
-        className="flex items-center gap-3.5 rounded-2xl border border-border bg-surface p-4 transition-colors active:bg-secondary"
-      >
-        <GenerativeCover
-          seed="continuar-lectura"
-          gradient="from-cyan-500/70 to-blue-700/70"
-          className="size-14 shrink-0"
-          rounded="rounded-xl"
-          icon={BookOpen}
-        />
-        <div className="min-w-0 flex-1">
-          <p className="text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-primary">
-            Continuar leyendo
-          </p>
-          <p className="mt-0.5 truncate font-display text-base font-semibold">Juan 3</p>
-          <Progress value={42} className="mt-2" label="Progreso de lectura: 42 %" />
-        </div>
-      </Link>
 
-      {verse.data && (
-        <div className="surface-card p-4">
-          <p className="text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-primary">
-            Versículo del día
-          </p>
-          <blockquote className="mt-2 font-display text-base leading-snug" data-selectable>
-            “{verse.data.text}”
-          </blockquote>
-          <p className="mt-2 text-sm text-muted-foreground">{verse.data.ref}</p>
-        </div>
-      )}
+      <DailyVerseCard />
 
       {/* Book search + list */}
       <div className="relative">
