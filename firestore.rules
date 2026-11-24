@@ -444,6 +444,95 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // HESERIA Parejas. La invitación es un código aleatorio que solo se puede leer conociéndolo
+    // (no se listan). Usarla crea la pareja y la marca usada en la misma escritura; cada pareja
+    // solo la ven sus dos miembros, ni la administración.
+    match /coupleInvites/{code} {
+      allow get: if signedIn();
+      allow create: if signedIn() && code.matches('[A-Z2-9]{8}')
+        && data().keys().hasOnly(['from', 'fromName', 'createdAt', 'expiresAt', 'used'])
+        && data().from == uid() && data().used == false && optStr(data(), 'fromName', 80)
+        && nowish(data().createdAt) && data().expiresAt is timestamp;
+      allow update: if signedIn() && resource.data.used == false && resource.data.from != uid()
+        && resource.data.expiresAt > request.time
+        && data().diff(resource.data).affectedKeys().hasOnly(['used', 'coupleId'])
+        && data().used == true
+        && getAfter(/databases/$(database)/documents/couples/$(data().coupleId)).data.members == [resource.data.from, uid()];
+      allow delete: if signedIn() && resource.data.from == uid();
+    }
+
+    function coupleMember(id) {
+      return signedIn() && uid() in get(/databases/$(database)/documents/couples/$(id)).data.members;
+    }
+
+    match /couples/{id} {
+      allow read, delete: if signedIn() && uid() in resource.data.members;
+      allow create: if signedIn()
+        && data().keys().hasOnly(['members', 'names', 'invite', 'passage', 'createdAt'])
+        && data().members.size() == 2 && data().members[1] == uid() && data().members[0] != uid()
+        && data().passage == null && nowish(data().createdAt)
+        && get(/databases/$(database)/documents/coupleInvites/$(data().invite)).data.from == data().members[0]
+        && getAfter(/databases/$(database)/documents/coupleInvites/$(data().invite)).data.coupleId == id;
+      allow update: if signedIn() && uid() in resource.data.members
+        && data().diff(resource.data).affectedKeys().hasOnly(['passage'])
+        && data().passage.keys().hasOnly(['book', 'chapter', 'by'])
+        && str(data().passage.book, 1, 40) && data().passage.chapter is int && data().passage.by == uid();
+
+      match /notes/{noteId} {
+        allow read, delete: if coupleMember(id);
+        allow create: if coupleMember(id) && data().keys().hasOnly(['authorId', 'body', 'ref', 'createdAt'])
+          && data().authorId == uid() && str(data().body, 1, 4000) && optStr(data(), 'ref', 80) && nowish(data().createdAt);
+      }
+    }
+
+    // HESERIA Familia. Espacio privado: solo sus miembros lo ven. Se entra con un código que
+    // genera un tutor. Los perfiles infantiles los crea y edita solo un tutor y guardan lo mínimo:
+    // un nombre o apodo, el grupo de edad y un avatar (sin fecha de nacimiento, foto ni contacto).
+    function family(id) { return get(/databases/$(database)/documents/families/$(id)).data; }
+    function familyMember(id) { return signedIn() && uid() in family(id).members; }
+    function familyTutor(id) { return familyMember(id) && family(id).roles.get(uid(), '') == 'tutor'; }
+
+    match /families/{id} {
+      allow read: if signedIn() && uid() in resource.data.members;
+      allow create: if signedIn()
+        && data().keys().hasOnly(['name', 'members', 'roles', 'names', 'createdBy', 'createdAt'])
+        && str(data().name, 1, 60) && data().createdBy == uid() && data().members == [uid()]
+        && data().roles.keys().hasOnly([uid()]) && data().roles[uid()] == 'tutor' && nowish(data().createdAt);
+      // Entrar con un código vigente: solo se agrega a sí misma, como miembro.
+      allow update: if signedIn() && !(uid() in resource.data.members)
+        && data().diff(resource.data).affectedKeys().hasOnly(['members', 'roles', 'names', 'joinedWith'])
+        && data().members == resource.data.members.concat([uid()]) && data().members.size() <= 12
+        && data().roles.diff(resource.data.roles).affectedKeys().hasOnly([uid()]) && data().roles[uid()] == 'miembro'
+        && get(/databases/$(database)/documents/familyInvites/$(data().joinedWith)).data.familyId == id
+        && get(/databases/$(database)/documents/familyInvites/$(data().joinedWith)).data.expiresAt > request.time;
+      // Un tutor administra miembros y roles; cualquier miembro puede salirse.
+      allow update: if signedIn() && uid() in resource.data.members && resource.data.roles.get(uid(), '') == 'tutor'
+        && data().diff(resource.data).affectedKeys().hasOnly(['name', 'members', 'roles', 'names'])
+        && resource.data.createdBy in data().members && str(data().name, 1, 60);
+      allow update: if signedIn() && uid() in resource.data.members && uid() != resource.data.createdBy
+        && data().diff(resource.data).affectedKeys().hasOnly(['members'])
+        && data().members == resource.data.members.removeAll([uid()]);
+      allow delete: if signedIn() && resource.data.createdBy == uid();
+
+      match /children/{childId} {
+        allow read: if familyMember(id);
+        allow delete: if familyTutor(id);
+        allow create, update: if familyTutor(id)
+          && data().keys().hasOnly(['name', 'ageGroup', 'avatar', 'done', 'createdAt', 'updatedAt'])
+          && str(data().name, 1, 40) && data().ageGroup in ['3-5', '6-8', '9-12']
+          && optStr(data(), 'avatar', 8) && data().done is list && data().done.size() <= 300;
+      }
+    }
+
+    match /familyInvites/{code} {
+      allow get: if signedIn();
+      allow create: if code.matches('[A-Z2-9]{8}') && familyTutor(data().familyId)
+        && data().keys().hasOnly(['familyId', 'createdBy', 'createdAt', 'expiresAt'])
+        && data().createdBy == uid() && nowish(data().createdAt) && data().expiresAt is timestamp
+        && data().expiresAt < request.time + duration.value(8, 'd');
+      allow delete: if signedIn() && resource.data.createdBy == uid();
+    }
+
     match /reports/{id} {
       allow create: if signedIn() && data().reportedBy == uid() && str(data().reason, 1, 500);
       allow read, update: if isAdmin() || canModerate();

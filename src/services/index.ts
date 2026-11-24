@@ -34,11 +34,13 @@ import {
   arrayUnion,
   deleteDoc,
   deleteField,
+  doc,
   getCountFromServer,
   getDoc,
   getDocs,
   increment,
   limit,
+  onSnapshot,
   orderBy,
   query,
   serverTimestamp,
@@ -3606,6 +3608,171 @@ export const radioService = {
       else await addDoc(col("radios"), data);
     }),
   remove: (id: ID) => friendly(() => deleteDoc(ref("radios", id))),
+};
+
+/* ================================================================ parejas */
+
+/**
+ * HESERIA Parejas. Una pareja se forma con un código privado de invitación (vence en 7 días y
+ * sirve una sola vez); nadie se vincula sin aceptar. Dentro: notas compartidas (las privadas
+ * siguen en Mi diario) y un pasaje sincronizado para leer juntos. Las reglas aíslan cada pareja.
+ */
+export interface Couple {
+  id: ID;
+  members: ID[];
+  names: Record<string, string>;
+  passage: { book: string; chapter: number; by: ID } | null;
+  createdAt: string;
+}
+export interface CoupleNote { id: ID; authorId: ID; body: string; ref: string; createdAt: string }
+
+function toCouple(d: DocumentSnapshot<DocumentData>): Couple | null {
+  const x = d.data();
+  if (!x?.members) return null;
+  return { id: d.id, members: x.members, names: x.names ?? {}, passage: x.passage ?? null, createdAt: iso(x.createdAt) };
+}
+
+const inviteCode = () => {
+  const abc = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // sin 0/O ni 1/I
+  const bytes = crypto.getRandomValues(new Uint8Array(8));
+  return Array.from(bytes, (b) => abc[b % abc.length]).join("");
+};
+
+export const coupleService = {
+  /** La pareja de la persona (o null). */
+  mine: () =>
+    friendly(async () => (await list(query(col("couples"), where("members", "array-contains", me())), toCouple))[0] ?? null),
+
+  /** Crea un código de invitación para compartir por el medio que la persona elija. */
+  invite: () =>
+    friendly(async () => {
+      const code = inviteCode();
+      const profile = (await getDoc(ref("users", me()))).data();
+      await setDoc(ref("coupleInvites", code), {
+        from: me(), fromName: String(profile?.name ?? "").slice(0, 80),
+        createdAt: serverTimestamp(), expiresAt: Timestamp.fromMillis(Date.now() + 7 * 864e5), used: false,
+      });
+      return code;
+    }),
+
+  /** Revoca una invitación propia que todavía no se usó. */
+  revoke: (code: string) => friendly(() => deleteDoc(ref("coupleInvites", code.trim().toUpperCase()))),
+
+  /** Acepta un código: crea la pareja y marca la invitación como usada, en una sola escritura. */
+  accept: (rawCode: string) =>
+    friendly(async () => {
+      const code = rawCode.trim().toUpperCase();
+      const inv = await getDoc(ref("coupleInvites", code)).catch(() => null);
+      const x = inv?.data();
+      if (!x || x.used || (x.expiresAt as Timestamp).toMillis() < Date.now()) throw new AppError("El código no es válido o ya venció.");
+      if (x.from === me()) throw new AppError("Ese código lo creaste tú: compártelo con tu pareja.");
+      if (await coupleService.mine()) throw new AppError("Ya tienes una pareja vinculada.");
+      const profile = (await getDoc(ref("users", me()))).data();
+      const coupleRef = doc(col("couples"));
+      const batch = writeBatch(db);
+      batch.set(coupleRef, {
+        members: [x.from, me()], names: { [x.from]: x.fromName, [me()]: String(profile?.name ?? "").slice(0, 80) },
+        invite: code, passage: null, createdAt: serverTimestamp(),
+      });
+      batch.update(ref("coupleInvites", code), { used: true, coupleId: coupleRef.id });
+      await batch.commit();
+      return coupleRef.id;
+    }),
+
+  /** Desvincular: borra las notas compartidas y la pareja (cualquiera de los dos puede). */
+  unlink: (c: Couple) =>
+    friendly(async () => {
+      for (const n of (await getDocs(col(`couples/${c.id}/notes`))).docs) await deleteDoc(n.ref);
+      await deleteDoc(ref("couples", c.id));
+    }),
+
+  /** Lleva a los dos al mismo pasaje (si la otra persona tiene activada la sincronización). */
+  setPassage: (coupleId: ID, book: string, chapter: number) =>
+    friendly(() => updateDoc(ref("couples", coupleId), { passage: { book, chapter, by: me() } })),
+
+  /** Escucha la pareja en vivo (pasaje sincronizado). Devuelve la función para dejar de escuchar. */
+  watch: (id: ID, cb: (c: Couple | null) => void) => onSnapshot(ref("couples", id), (d) => cb(toCouple(d)), () => cb(null)),
+
+  notes: (c: Couple) =>
+    friendly(async () =>
+      (await list(col(`couples/${c.id}/notes`), (d) => {
+        const x = d.data();
+        return x ? { id: d.id, authorId: x.authorId, body: x.body, ref: x.ref ?? "", createdAt: iso(x.createdAt) } as CoupleNote : null;
+      })).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    ),
+  addNote: (c: Couple, body: string, ref_ = "") =>
+    friendly(() => addDoc(col(`couples/${c.id}/notes`), { authorId: me(), body: body.trim().slice(0, 4000), ref: ref_.slice(0, 80), createdAt: serverTimestamp() })),
+  removeNote: (c: Couple, id: ID) => friendly(() => deleteDoc(ref(`couples/${c.id}/notes`, id))),
+};
+
+/* ================================================================ familia */
+
+/** HESERIA Familia: espacio privado con tutores y miembros; perfiles infantiles mínimos. */
+export type AgeGroup = "3-5" | "6-8" | "9-12";
+export interface Family { id: ID; name: string; members: ID[]; roles: Record<string, "tutor" | "miembro">; names: Record<string, string>; createdBy: ID }
+export interface Child { id: ID; name: string; ageGroup: AgeGroup; avatar: string; done: string[] }
+
+function toFamily(d: DocumentSnapshot<DocumentData>): Family | null {
+  const x = d.data();
+  return x?.members ? { id: d.id, name: x.name, members: x.members, roles: x.roles ?? {}, names: x.names ?? {}, createdBy: x.createdBy } : null;
+}
+const myName = async () => String((await getDoc(ref("users", me()))).data()?.name ?? "").slice(0, 80);
+
+export const familyService = {
+  mine: () => friendly(async () => (await list(query(col("families"), where("members", "array-contains", me())), toFamily))[0] ?? null),
+
+  create: (name: string) =>
+    friendly(async () => {
+      await addDoc(col("families"), {
+        name: name.trim().slice(0, 60), members: [me()], roles: { [me()]: "tutor" }, names: { [me()]: await myName() },
+        createdBy: me(), createdAt: serverTimestamp(),
+      });
+    }),
+
+  invite: (f: Family) =>
+    friendly(async () => {
+      const code = inviteCode();
+      await setDoc(ref("familyInvites", code), { familyId: f.id, createdBy: me(), createdAt: serverTimestamp(), expiresAt: Timestamp.fromMillis(Date.now() + 7 * 864e5) });
+      return code;
+    }),
+
+  join: (rawCode: string) =>
+    friendly(async () => {
+      const code = rawCode.trim().toUpperCase();
+      const inv = (await getDoc(ref("familyInvites", code)).catch(() => null))?.data();
+      if (!inv || (inv.expiresAt as Timestamp).toMillis() < Date.now()) throw new AppError("El código no es válido o ya venció.");
+      await updateDoc(ref("families", inv.familyId), {
+        members: arrayUnion(me()), [`roles.${me()}`]: "miembro", [`names.${me()}`]: await myName(), joinedWith: code,
+      });
+    }),
+
+  /** Tutor: cambia el rol de alguien o lo quita del espacio. */
+  setRole: (f: Family, userId: ID, role: "tutor" | "miembro") => friendly(() => updateDoc(ref("families", f.id), { [`roles.${userId}`]: role })),
+  removeMember: (f: Family, userId: ID) => friendly(() => updateDoc(ref("families", f.id), { members: f.members.filter((m) => m !== userId) })),
+  leave: (f: Family) => friendly(() => updateDoc(ref("families", f.id), { members: f.members.filter((m) => m !== me()) })),
+  remove: (f: Family) =>
+    friendly(async () => {
+      for (const c of (await getDocs(col(`families/${f.id}/children`))).docs) await deleteDoc(c.ref);
+      await deleteDoc(ref("families", f.id));
+    }),
+
+  children: (f: Family) =>
+    friendly(() => list(col(`families/${f.id}/children`), (d) => {
+      const x = d.data();
+      return x ? ({ id: d.id, name: x.name, ageGroup: x.ageGroup, avatar: x.avatar ?? "", done: x.done ?? [] } as Child) : null;
+    })),
+  saveChild: (f: Family, c: Omit<Child, "id" | "done"> & { id?: ID; done?: string[] }) =>
+    friendly(() => {
+      const data = { name: c.name.trim().slice(0, 40), ageGroup: c.ageGroup, avatar: c.avatar.slice(0, 8), done: c.done ?? [], updatedAt: serverTimestamp() };
+      return c.id
+        ? updateDoc(ref(`families/${f.id}/children`, c.id), data)
+        : addDoc(col(`families/${f.id}/children`), { ...data, createdAt: serverTimestamp() }).then(() => undefined);
+    }),
+  removeChild: (f: Family, id: ID) => friendly(() => deleteDoc(ref(`families/${f.id}/children`, id))),
+  toggleDone: (f: Family, c: Child, activityId: string) =>
+    friendly(() => updateDoc(ref(`families/${f.id}/children`, c.id), {
+      done: c.done.includes(activityId) ? c.done.filter((a) => a !== activityId) : [...c.done, activityId], updatedAt: serverTimestamp(),
+    })),
 };
 
 export const feedbackService = {
