@@ -290,6 +290,13 @@ await allowed("Ana lo da de baja", () => deleteDoc(doc(ana.db, "pushTokens", "to
   await denied("ni marca una licencia como concedida", () => setDoc(doc(ana.db, "licenses", "l2"), { ...lic, status: "concedida" }));
   await denied("un estado inventado no entra", () => setDoc(doc(owner.db, "licenses", "l3"), { ...lic, status: "quizas" }));
 }
+{
+  const book = { title: "Libro de prueba", author: "Autor", format: "epub", url: "https://libros.example.org/a.epub", license: "Dominio público", source: "", status: "activo", updatedAt: serverTimestamp() };
+  await allowed("la administración publica un libro", () => setDoc(doc(owner.db, "books", "b1"), book));
+  await allowed("cualquiera ve la biblioteca", () => getDoc(doc(ana.db, "books", "b1")));
+  await denied("Ana no publica libros", () => setDoc(doc(ana.db, "books", "b2"), book));
+  await denied("ni sin licencia indicada", () => setDoc(doc(owner.db, "books", "b3"), { ...book, license: "" }));
+}
 await denied("un pastor no abre una colecta", () => setDoc(doc(beto.db, "foundationCases", "mi-colecta"), { title: "Ayuda para mí", goal: 1000 }));
 await denied("nadie cambia a dónde llega el dinero", () => setDoc(doc(beto.db, "settings", "payments"), { methods: [{ type: "paypal", handle: "estafador" }] }));
 await allowed("la Fundación configura sus métodos", () => setDoc(doc(owner.db, "settings", "payments"), { methods: [] }));

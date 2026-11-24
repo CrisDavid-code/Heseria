@@ -175,6 +175,8 @@ const Memorize = lazy(() => import("@/pages/bible/Memorize"));
 const Radio = lazy(() => import("@/pages/media/Radio"));
 const AdminRadios = lazy(() => import("@/pages/admin/AdminRadios"));
 const AdminLicenses = lazy(() => import("@/pages/admin/AdminLicenses"));
+const AdminBooks = lazy(() => import("@/pages/admin/AdminBooks"));
+const Reader = lazy(() => import("@/pages/media/Reader"));
 
 export function App() {
   return (
@@ -221,6 +223,7 @@ export function App() {
             <Route path="/prayer/new" element={<PrayerNew />} />
             <Route path="/diario" element={<Journal />} />
             <Route path="/asistente" element={<Assistant />} />
+            <Route path="/lector" element={<Reader />} />
             <Route path="/pareja" element={<Couple />} />
             <Route path="/familia" element={<Family />} />
             <Route path="/memorizar" element={<Memorize />} />
@@ -372,6 +375,7 @@ export function App() {
               <Route path="/admin/feedback" element={<AdminFeedback />} />
               <Route path="/admin/radios" element={<AdminRadios />} />
               <Route path="/admin/licenses" element={<AdminLicenses />} />
+              <Route path="/admin/books" element={<AdminBooks />} />
             </Route>
 
             {/* Contenido añadido desde la app */}

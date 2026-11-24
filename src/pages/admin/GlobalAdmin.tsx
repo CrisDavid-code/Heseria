@@ -39,6 +39,7 @@ const SECTIONS = [
   { label: "Medios", href: "/admin/media", icon: Film, description: "Música, videos y sermones" },
   { label: "Radios", href: "/admin/radios", icon: RadioIcon, description: "Emisoras en vivo verificadas" },
   { label: "Licencias", href: "/admin/licenses", icon: FileText, description: "Permisos y atribuciones" },
+  { label: "Biblioteca", href: "/admin/books", icon: FileText, description: "Libros del lector" },
   { label: "Cursos", href: "/admin/courses", icon: GraduationCap, description: "Catálogo de la academia" },
   { label: "Eventos", href: "/admin/events", icon: CalendarDays, description: "Agenda global" },
   { label: "Notificaciones", href: "/admin/notifications", icon: Megaphone, description: "Envíos manuales y automáticos" },

@@ -105,9 +105,10 @@ export const TABS: TabDef[] = [
     labelKey: "nav.library",
     href: "/library",
     icon: Library,
-    match: ["/library", "/foundation"],
+    match: ["/library", "/foundation", "/lector"],
     sections: [
       { label: "Guardados", href: "/library?tab=guardados" },
+      { label: "Lector", href: "/lector" },
       { label: "Música", href: "/library?tab=musica" },
       { label: "Videos", href: "/library?tab=videos" },
       { label: "Cursos", href: "/library?tab=cursos" },

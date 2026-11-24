@@ -3843,6 +3843,28 @@ export const aiService = {
   },
 };
 
+/* ================================================================ biblioteca */
+
+export interface CatalogBook { id: ID; title: string; author: string; format: "epub" | "pdf" | "txt"; url: string; license: string; source: string; status: "activo" | "retirado" }
+const toBook = (d: DocumentSnapshot<DocumentData>) => {
+  const x = d.data();
+  return x ? ({ id: d.id, title: x.title, author: x.author ?? "", format: x.format, url: x.url, license: x.license, source: x.source ?? "", status: x.status } as CatalogBook) : null;
+};
+
+/** Biblioteca del lector (la administración publica; cualquiera lee). */
+export const bookService = {
+  list: () => friendly(async () => (await list(query(col("books"), where("status", "==", "activo")), toBook)).sort((a, b) => a.title.localeCompare(b.title))),
+  all: () => friendly(async () => (await list(col("books"), toBook)).sort((a, b) => a.title.localeCompare(b.title))),
+  save: (b: Omit<CatalogBook, "id"> & { id?: ID }) =>
+    friendly(async () => {
+      const { id, ...rest } = b;
+      const data = { ...rest, title: rest.title.trim(), url: rest.url.trim(), updatedAt: serverTimestamp() };
+      if (id) await setDoc(ref("books", id), data);
+      else await addDoc(col("books"), data);
+    }),
+  remove: (id: ID) => friendly(() => deleteDoc(ref("books", id))),
+};
+
 export const feedbackService = {
   list: () =>
     friendly(() =>

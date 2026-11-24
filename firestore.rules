@@ -544,6 +544,17 @@ service cloud.firestore {
         && optStr(data(), 'holder', 200) && optStr(data(), 'license', 300) && optStr(data(), 'evidence', 500) && optStr(data(), 'notes', 2000);
     }
 
+    // Biblioteca del lector: libros de dominio público o con licencia que publica la administración.
+    match /books/{id} {
+      allow read: if true;
+      allow delete: if isAdmin();
+      allow create, update: if isAdmin()
+        && data().keys().hasOnly(['title', 'author', 'format', 'url', 'license', 'source', 'status', 'updatedAt'])
+        && str(data().title, 1, 160) && data().format in ['epub', 'pdf', 'txt']
+        && data().url.matches('https://[^ ]{4,500}') && str(data().license, 1, 200)
+        && data().status in ['activo', 'retirado'];
+    }
+
     match /reports/{id} {
       allow create: if signedIn() && data().reportedBy == uid() && str(data().reason, 1, 500);
       allow read, update: if isAdmin() || canModerate();
