@@ -173,6 +173,7 @@ const Family = lazy(() => import("@/pages/personal/Family"));
 const Memorize = lazy(() => import("@/pages/bible/Memorize"));
 const Radio = lazy(() => import("@/pages/media/Radio"));
 const AdminRadios = lazy(() => import("@/pages/admin/AdminRadios"));
+const AdminLicenses = lazy(() => import("@/pages/admin/AdminLicenses"));
 
 export function App() {
   return (
@@ -368,6 +369,7 @@ export function App() {
               <Route path="/admin/settings" element={<AdminSettings />} />
               <Route path="/admin/feedback" element={<AdminFeedback />} />
               <Route path="/admin/radios" element={<AdminRadios />} />
+              <Route path="/admin/licenses" element={<AdminLicenses />} />
             </Route>
 
             {/* Contenido añadido desde la app */}

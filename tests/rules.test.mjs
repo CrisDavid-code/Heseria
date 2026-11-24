@@ -283,6 +283,13 @@ await allowed("Ana lo da de baja", () => deleteDoc(doc(ana.db, "pushTokens", "to
   await denied("ni se hace tutor solo", () => updateDoc(doc(beto.db, "families", "f1"), { [`roles.${beto.uid}`]: "tutor" }));
   await allowed("Beto puede salirse", () => updateDoc(doc(beto.db, "families", "f1"), { members: arrayRemove(beto.uid) }));
 }
+{
+  const lic = { item: "Reina-Valera 1960", kind: "biblia", holder: "Sociedades Bíblicas Unidas", license: "", status: "pendiente", scopes: ["texto", "voz"], updatedAt: serverTimestamp() };
+  await allowed("la administración registra una licencia", () => setDoc(doc(owner.db, "licenses", "l1"), lic));
+  await denied("nadie más ve el registro de licencias", () => getDocs(collection(ana.db, "licenses")));
+  await denied("ni marca una licencia como concedida", () => setDoc(doc(ana.db, "licenses", "l2"), { ...lic, status: "concedida" }));
+  await denied("un estado inventado no entra", () => setDoc(doc(owner.db, "licenses", "l3"), { ...lic, status: "quizas" }));
+}
 await denied("un pastor no abre una colecta", () => setDoc(doc(beto.db, "foundationCases", "mi-colecta"), { title: "Ayuda para mí", goal: 1000 }));
 await denied("nadie cambia a dónde llega el dinero", () => setDoc(doc(beto.db, "settings", "payments"), { methods: [{ type: "paypal", handle: "estafador" }] }));
 await allowed("la Fundación configura sus métodos", () => setDoc(doc(owner.db, "settings", "payments"), { methods: [] }));

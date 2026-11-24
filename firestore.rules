@@ -533,6 +533,17 @@ service cloud.firestore {
       allow delete: if signedIn() && resource.data.createdBy == uid();
     }
 
+    // Registro de licencias y atribuciones: qué contenido usa la app, de quién es y con qué permiso.
+    match /licenses/{id} {
+      allow read, delete: if isAdmin();
+      allow create, update: if isAdmin()
+        && data().keys().hasOnly(['item', 'kind', 'holder', 'license', 'status', 'scopes', 'evidence', 'notes', 'reviewedAt', 'updatedAt'])
+        && str(data().item, 1, 120) && data().kind in ['biblia', 'musica', 'podcast', 'radio', 'video', 'libro', 'imagen', 'otro']
+        && data().status in ['pendiente', 'solicitada', 'concedida', 'denegada', 'dominio-publico', 'propia']
+        && data().scopes is list && data().scopes.size() <= 8
+        && optStr(data(), 'holder', 200) && optStr(data(), 'license', 300) && optStr(data(), 'evidence', 500) && optStr(data(), 'notes', 2000);
+    }
+
     match /reports/{id} {
       allow create: if signedIn() && data().reportedBy == uid() && str(data().reason, 1, 500);
       allow read, update: if isAdmin() || canModerate();

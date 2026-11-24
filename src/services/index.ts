@@ -3775,6 +3775,45 @@ export const familyService = {
     })),
 };
 
+/* ================================================================ licencias */
+
+export type LicenseStatus = "pendiente" | "solicitada" | "concedida" | "denegada" | "dominio-publico" | "propia";
+export interface LicenseEntry {
+  id: ID; item: string; kind: string; holder: string; license: string; status: LicenseStatus;
+  scopes: string[]; evidence: string; notes: string; reviewedAt: string | null;
+}
+
+/** Registro de licencias y atribuciones (solo administración). */
+export const licenseService = {
+  all: () =>
+    friendly(async () =>
+      (await list(col("licenses"), (d) => {
+        const x = d.data();
+        return x ? ({ id: d.id, item: x.item, kind: x.kind, holder: x.holder ?? "", license: x.license ?? "", status: x.status, scopes: x.scopes ?? [], evidence: x.evidence ?? "", notes: x.notes ?? "", reviewedAt: x.reviewedAt ? iso(x.reviewedAt) : null } as LicenseEntry) : null;
+      })).sort((a, b) => a.kind.localeCompare(b.kind) || a.item.localeCompare(b.item)),
+    ),
+  save: (e: Omit<LicenseEntry, "id" | "reviewedAt"> & { id?: ID }) =>
+    friendly(async () => {
+      const { id, ...rest } = e;
+      const data = { ...rest, item: rest.item.trim(), reviewedAt: serverTimestamp(), updatedAt: serverTimestamp() };
+      if (id) await setDoc(ref("licenses", id), data);
+      else await addDoc(col("licenses"), data);
+    }),
+  remove: (id: ID) => friendly(() => deleteDoc(ref("licenses", id))),
+  /** Agrega como «pendiente» cada versión bíblica que la app trae y aún no está en el registro. */
+  importBibles: (versions: { id: string; name: string; copyright?: string }[]) =>
+    friendly(async () => {
+      let n = 0;
+      for (const v of versions) {
+        const r = ref("licenses", `biblia-${v.id}`);
+        if ((await getDoc(r)).exists()) continue;
+        await setDoc(r, { item: v.name, kind: "biblia", holder: v.copyright ?? "", license: "", status: "pendiente", scopes: ["texto"], evidence: "", notes: "", updatedAt: serverTimestamp() });
+        n++;
+      }
+      return n;
+    }),
+};
+
 export const feedbackService = {
   list: () =>
     friendly(() =>
