@@ -1,5 +1,5 @@
 import {
-  Activity, AlertTriangle, BarChart3, Church, Film, FileText, Flag, GraduationCap, HandHeart,
+  Activity, AlertTriangle, Radio as RadioIcon, BarChart3, Church, Film, FileText, Flag, GraduationCap, HandHeart,
   Image, CalendarDays, Megaphone, MessageSquareWarning, Settings as SettingsIcon, ShieldCheck, Users,
 } from "lucide-react";
 import { isSuperAdmin } from "@/lib/permissions";
@@ -36,6 +36,7 @@ const SECTIONS = [
   { label: "Iglesias", href: "/admin/churches", icon: Church, description: "Directorio global" },
   { label: "Contenido", href: "/admin/content", icon: FileText, description: "Videos y publicaciones" },
   { label: "Medios", href: "/admin/media", icon: Film, description: "Música, videos y sermones" },
+  { label: "Radios", href: "/admin/radios", icon: RadioIcon, description: "Emisoras en vivo verificadas" },
   { label: "Cursos", href: "/admin/courses", icon: GraduationCap, description: "Catálogo de la academia" },
   { label: "Eventos", href: "/admin/events", icon: CalendarDays, description: "Agenda global" },
   { label: "Notificaciones", href: "/admin/notifications", icon: Megaphone, description: "Envíos manuales y automáticos" },

@@ -17,9 +17,11 @@
     "emulators": "firebase emulators:start --only firestore,auth --project demo-heseria",
     "test:rules": "firebase emulators:exec --only firestore,auth --project demo-heseria \"node tests/rules.test.mjs\"",
     "deploy:web": "npm run build && firebase deploy --only hosting",
-    "deploy:rules": "node scripts/publicar-reglas.cjs"
+    "deploy:rules": "node scripts/publicar-reglas.cjs",
+    "test": "node tests/memorize.test.mjs"
   },
   "dependencies": {
+    "@capacitor-community/text-to-speech": "^8.0.2",
     "@capacitor/android": "^8.5.1",
     "@capacitor/app": "^8.1.1",
     "@capacitor/camera": "^8.2.4",

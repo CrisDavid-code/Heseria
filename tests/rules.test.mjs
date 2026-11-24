@@ -206,6 +206,25 @@ await denied("no registra un dispositivo a nombre de otro", () => setDoc(doc(ana
 await denied("nadie lee los dispositivos desde la app", () => getDoc(doc(owner.db, "pushTokens", "tok-ana")));
 await denied("Beto no borra el dispositivo de Ana", () => deleteDoc(doc(beto.db, "pushTokens", "tok-ana")));
 await allowed("Ana lo da de baja", () => deleteDoc(doc(ana.db, "pushTokens", "tok-ana")));
+{
+  // Diario espiritual y de oración: privados de verdad (ni la administración los lee).
+  await allowed("Ana escribe en su diario de oración", () => setDoc(doc(ana.db, `users/${ana.uid}/journal`, "j1"), { kind: "oracion", title: "Por mi familia", body: "Señor, cuida a mi familia.", refs: ["Salmos 91:1"], tags: ["familia"], favorite: false, answered: false, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }));
+  await allowed("Ana lee su diario", () => getDoc(doc(ana.db, `users/${ana.uid}/journal`, "j1")));
+  await denied("Beto no lee el diario de Ana", () => getDoc(doc(beto.db, `users/${ana.uid}/journal`, "j1")));
+  await denied("ni el superadmin lee el diario de Ana", () => getDocs(collection(owner.db, `users/${ana.uid}/journal`)));
+  await denied("Beto no escribe en el diario de Ana", () => setDoc(doc(beto.db, `users/${ana.uid}/journal`, "j2"), { kind: "espiritual", body: "x", createdAt: serverTimestamp() }));
+  await denied("una anotación con tipo inventado no entra", () => setDoc(doc(ana.db, `users/${ana.uid}/journal`, "j3"), { kind: "publico", body: "x" }));
+  await allowed("Ana guarda un versículo para memorizar", () => setDoc(doc(ana.db, `users/${ana.uid}/memory`, "juan.3.16"), { ref: "Juan 3:16", book: "juan", chapter: 3, verse: 16, version: "rvr1960", text: "Porque de tal manera…", level: 0, reviews: 0, nextReview: serverTimestamp(), createdAt: serverTimestamp() }));
+  await denied("Beto no ve lo que Ana memoriza", () => getDocs(collection(beto.db, `users/${ana.uid}/memory`)));
+  await allowed("Ana guarda dónde se quedó leyendo", () => setDoc(doc(ana.db, `users/${ana.uid}/readingState`, "bible"), { book: "juan", chapter: 3, verse: 1, version: "rvr1960", updatedAt: serverTimestamp() }));
+  await denied("Beto no ve dónde lee Ana", () => getDoc(doc(beto.db, `users/${ana.uid}/readingState`, "bible")));
+  // Radio: catálogo público, solo la administración publica y solo con https.
+  const radio = { name: "Radio de prueba", streamUrl: "https://stream.example.org/live", status: "activa", country: "Guatemala", updatedAt: serverTimestamp() };
+  await allowed("la administración agrega una radio", () => setDoc(doc(owner.db, "radios", "r1"), radio));
+  await allowed("cualquiera ve el catálogo de radio", () => getDoc(doc(ana.db, "radios", "r1")));
+  await denied("Ana no agrega radios", () => setDoc(doc(ana.db, "radios", "r2"), radio));
+  await denied("ni una URL sin https", () => setDoc(doc(owner.db, "radios", "r3"), { ...radio, streamUrl: "http://inseguro.example/live" }));
+}
 await denied("un pastor no abre una colecta", () => setDoc(doc(beto.db, "foundationCases", "mi-colecta"), { title: "Ayuda para mí", goal: 1000 }));
 await denied("nadie cambia a dónde llega el dinero", () => setDoc(doc(beto.db, "settings", "payments"), { methods: [{ type: "paypal", handle: "estafador" }] }));
 await allowed("la Fundación configura sus métodos", () => setDoc(doc(owner.db, "settings", "payments"), { methods: [] }));

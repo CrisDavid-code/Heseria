@@ -89,6 +89,30 @@ service cloud.firestore {
         allow read, write: if (signedIn() && userId == uid()) || isAdmin();
       }
 
+      // Diario espiritual, diario de oración y versículos para memorizar: privados de verdad.
+      // Solo la persona los lee o escribe (ni la administración), con campos y tamaños acotados.
+      match /journal/{entryId} {
+        allow read, delete: if signedIn() && userId == uid();
+        allow create, update: if signedIn() && userId == uid()
+          && data().keys().hasOnly(['kind', 'title', 'body', 'refs', 'tags', 'favorite', 'answered', 'answeredAt', 'remindAt', 'createdAt', 'updatedAt'])
+          && data().kind in ['espiritual', 'oracion']
+          && str(data().body, 1, 10000) && optStr(data(), 'title', 200)
+          && (!('refs' in data()) || (data().refs is list && data().refs.size() <= 20))
+          && (!('tags' in data()) || (data().tags is list && data().tags.size() <= 10));
+      }
+      match /memory/{verseId} {
+        allow read, delete: if signedIn() && userId == uid();
+        allow create, update: if signedIn() && userId == uid()
+          && data().keys().hasOnly(['ref', 'book', 'chapter', 'verse', 'version', 'text', 'level', 'nextReview', 'reviews', 'createdAt'])
+          && str(data().text, 1, 2000) && num(data().level, 0, 5) && num(data().reviews, 0, 100000);
+      }
+      match /readingState/{docId} {
+        allow read, delete: if signedIn() && userId == uid();
+        allow create, update: if signedIn() && userId == uid() && docId == 'bible'
+          && data().keys().hasOnly(['book', 'chapter', 'verse', 'version', 'updatedAt'])
+          && str(data().book, 1, 40) && num(data().chapter, 1, 150);
+      }
+
       // Lo de cada persona es solo suyo.
       match /{sub}/{docId} {
         allow read, write: if signedIn() && userId == uid()
@@ -396,6 +420,18 @@ service cloud.firestore {
         && data().keys().hasOnly(['uid', 'platform', 'updatedAt'])
         && data().uid == uid() && str(data().platform, 1, 20) && nowish(data().updatedAt);
       allow delete: if signedIn() && resource.data.uid == uid();
+    }
+
+    // Radio cristiana en vivo: catálogo que administra la administración (solo URLs
+    // de transmisión verificadas por una persona). Cualquiera lo lee.
+    match /radios/{id} {
+      allow read: if true;
+      allow write: if isAdmin()
+        && data().keys().hasOnly(['name', 'description', 'logo', 'country', 'region', 'language', 'categories',
+                                  'site', 'source', 'streamUrl', 'status', 'verifiedAt', 'rights', 'updatedAt'])
+        && str(data().name, 1, 120) && data().streamUrl.matches('https://[^ ]{4,500}')
+        && data().status in ['activa', 'pausada', 'retirada'];
+      allow delete: if isAdmin();
     }
 
     match /reports/{id} {

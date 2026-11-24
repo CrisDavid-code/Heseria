@@ -7,7 +7,7 @@ import { BottomSheet, BottomSheetContent } from "@/components/ui/overlays";
 import { Badge, Chip, Input, Progress } from "@/components/ui/primitives";
 import { useAsync } from "@/hooks/useAsync";
 import { usePageMeta } from "@/hooks/usePageMeta";
-import { bibleService } from "@/services";
+import { bibleService, readingStateService } from "@/services";
 import { preferencesStore, usePreferences } from "@/store";
 import { useScreen } from "@/store/screen";
 import { cn } from "@/lib/utils";
@@ -44,6 +44,7 @@ export default function BibleIndex() {
   const books = useAsync(() => bibleService.books(), []);
   const versions = useAsync(() => bibleService.versions(), []);
   const verse = useAsync(() => bibleService.verseOfTheDay(), []);
+  const spot = useAsync(() => readingStateService.get(), []);
 
   const [query, setQuery] = useState("");
   const [chapterFor, setChapterFor] = useState<BibleBook | null>(null);
@@ -61,8 +62,24 @@ export default function BibleIndex() {
   const at = filtered.filter((b) => b.testament === "AT");
   const nt = filtered.filter((b) => b.testament === "NT");
 
+  const spotBook = spot.data && books.data?.find((b) => b.id === spot.data!.book);
+
   return (
     <div className="space-y-6">
+      {spotBook && (
+        <button
+          type="button"
+          onClick={() => navigate(`/bible/${spotBook.id}/${spot.data!.chapter}`)}
+          className="flex w-full items-center gap-3 rounded-2xl border border-primary/30 bg-primary/10 p-4 text-left active:scale-[0.99]"
+        >
+          <BookOpen className="size-5 shrink-0 text-primary" aria-hidden />
+          <span className="min-w-0 flex-1">
+            <span className="block text-xs text-muted-foreground">Continuar leyendo</span>
+            <span className="block font-semibold">{spotBook.name} {spot.data!.chapter}</span>
+          </span>
+          <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
+        </button>
+      )}
       {/* Version selector + continue reading */}
       <div className="flex items-center gap-2">
         <button

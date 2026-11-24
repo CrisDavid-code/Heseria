@@ -1,9 +1,11 @@
 import {
-  BarChart3, Bookmark, ChevronLeft, ChevronRight, Columns2, Copy, Minus, NotebookPen, Plus,
-  Share2, Sun, Type,
+  BarChart3, Bookmark, Brain, ChevronLeft, ChevronRight, Columns2, Copy, Minus, NotebookPen, Plus,
+  Share2, Sun, Type, Volume2,
 } from "lucide-react";
+import { SpeechBar } from "@/components/bible/SpeechBar";
+import { useSpeech } from "@/hooks/useSpeech";
 import { ReadingMusic } from "@/components/bible/ReadingMusic";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { DetailSkeleton, ErrorState } from "@/components/states";
@@ -14,7 +16,7 @@ import { Badge, Textarea } from "@/components/ui/primitives";
 import { useAsync } from "@/hooks/useAsync";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { haptic, share, shareUrl } from "@/native";
-import { bibleService, type VerseMark } from "@/services";
+import { bibleService, memoryService, readingStateService, type VerseMark } from "@/services";
 import { VerseShareSheet } from "@/components/bible/VerseShare";
 import { AnalysisSheet, CompareSheet } from "@/components/bible/StudyTools";
 import { preferencesStore, useLibrary, usePreferences } from "@/store";
@@ -51,6 +53,17 @@ export default function BibleChapter() {
   const [shareFor, setShareFor] = useState<number | null>(null);
   const [compareFor, setCompareFor] = useState<number | null>(null);
   const [analysisOpen, setAnalysisOpen] = useState(false);
+
+  // Lectura en voz alta, versículo por versículo (el que suena se resalta).
+  const spoken = useMemo(() => (data.data?.verses ?? []).filter((v) => v.text), [data.data]);
+  const speechParts = useMemo(() => spoken.map((v) => v.text), [spoken]);
+  const speech = useSpeech(speechParts);
+  const speakingVerse = speech.state === "playing" ? spoken[speech.index]?.number : null;
+
+  // «Continuar leyendo»: se guarda dónde se quedó, en el teléfono y en la cuenta.
+  useEffect(() => {
+    if (data.data) readingStateService.save({ book, chapter: chapterNumber, verse: 1, version: data.data.version });
+  }, [book, chapterNumber, data.data]);
 
   /*
    * Los resaltados, las notas y los versículos guardados viven en la cuenta,
@@ -144,6 +157,8 @@ export default function BibleChapter() {
         <Badge variant="outline">{meta?.testament === "AT" ? "Antiguo" : "Nuevo"}</Badge>
       </div>
 
+      <SpeechBar speech={speech} label="Escuchar capítulo" />
+
       <article
         className="space-y-1"
         style={{ fontSize: `${bibleFontScale}rem`, lineHeight: 1.75 }}
@@ -162,7 +177,9 @@ export default function BibleChapter() {
               byVerse[v.number]?.color &&
                 HIGHLIGHT_COLORS.find((c) => c.id === byVerse[v.number].color)?.className,
               selected === v.number && "bg-primary/12 ring-1 ring-primary/30",
+              speakingVerse === v.number && "bg-primary/15",
             )}
+            aria-current={speakingVerse === v.number ? "true" : undefined}
           >
             <sup className="mr-1.5 select-none text-[0.62em] font-semibold text-primary">
               {v.number}
@@ -238,6 +255,32 @@ export default function BibleChapter() {
           </div>
 
           <div className="space-y-0.5">
+            <SheetAction
+              icon={Brain}
+              label="Memorizar este versículo"
+              onClick={async () => {
+                if (!selectedVerse || selected === null) return;
+                try {
+                  await memoryService.add({
+                    ref: reference, book, chapter: chapterNumber, verse: selected,
+                    version: data.data!.version, text: selectedVerse.text,
+                  });
+                  toast.success("Agregado a Memorizar. Repásalo hoy.");
+                } catch (err) {
+                  toast.error(err instanceof Error ? err.message : "No se pudo guardar.");
+                }
+                setSelected(null);
+              }}
+            />
+            <SheetAction
+              icon={Volume2}
+              label="Escuchar desde aquí"
+              onClick={() => {
+                const i = spoken.findIndex((v) => v.number === selected);
+                setSelected(null);
+                if (i >= 0) speech.playAt(i);
+              }}
+            />
             <SheetAction
               icon={NotebookPen}
               label="Añadir nota"
