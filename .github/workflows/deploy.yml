@@ -90,6 +90,8 @@ jobs:
       - run: npm run build
         env:
           VITE_APP_VERSION: 1.0.${{ github.run_number }}
+          # URL del Worker (variable del repositorio AI_URL, p. ej. https://heseria-push.<cuenta>.workers.dev/ia).
+          VITE_AI_URL: ${{ vars.AI_URL }}
       - uses: actions/download-artifact@v4
         with:
           name: apk
@@ -142,6 +144,8 @@ jobs:
       - run: npm run build
         env:
           VITE_APP_VERSION: 1.0.${{ github.run_number }}
+          # URL del Worker (variable del repositorio AI_URL, p. ej. https://heseria-push.<cuenta>.workers.dev/ia).
+          VITE_AI_URL: ${{ vars.AI_URL }}
       - run: npx cap sync android
       - name: Compilar APK
         working-directory: android

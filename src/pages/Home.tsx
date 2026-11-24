@@ -363,7 +363,14 @@ export default function Home() {
                   <Button
                     size="sm"
                     variant="subtle"
-                    onClick={() => toast.success("Gracias por orar. Se lo hicimos saber.")}
+                    onClick={async () => {
+                      try {
+                        await prayerService.pray(p.id);
+                        toast.success("Gracias por orar. Se lo hicimos saber.");
+                      } catch (err) {
+                        toast.error(err instanceof Error ? err.message : "No se pudo registrar tu oración.");
+                      }
+                    }}
                   >
                     <Heart className="size-3.5" /> Estoy orando
                   </Button>

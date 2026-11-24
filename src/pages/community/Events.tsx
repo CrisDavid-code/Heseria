@@ -11,8 +11,8 @@ import { Badge, Chip, Progress } from "@/components/ui/primitives";
 import { useAsync } from "@/hooks/useAsync";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { share, shareUrl } from "@/native";
-import { eventService, ministryService } from "@/services";
-import { useLibrary } from "@/store";
+import { eventService, ministryService, notifyUser } from "@/services";
+import { useLibrary, useSession } from "@/store";
 import { useScreen } from "@/store/screen";
 import { churches, users } from "@/store/directory";
 import { formatCompact, formatDate, pct } from "@/lib/utils";
@@ -253,6 +253,7 @@ export function MinistryDetail() {
   const { id = "" } = useParams();
   const ministry = useAsync(() => ministryService.get(id), [id]);
   const [joined, setJoined] = useState(false);
+  const { user } = useSession();
 
   usePageMeta(ministry.data?.name ?? "Ministerio", ministry.data?.description);
   useScreen({ title: ministry.data?.name ?? "Ministerio", back: true, hideSections: true }, [
@@ -283,9 +284,21 @@ export function MinistryDetail() {
       <Button
         full
         variant={joined ? "secondary" : "primary"}
-        onClick={() => {
-          setJoined(true);
-          toast.success("Enviamos tu solicitud al líder del ministerio");
+        disabled={joined}
+        onClick={async () => {
+          if (!m.leaderId) return void toast.info("Este ministerio aún no tiene líder asignado. Escribe a tu iglesia.");
+          try {
+            await notifyUser(m.leaderId, {
+              category: "iglesia",
+              title: "Quieren servir en tu ministerio",
+              body: `${user.name} quiere servir en ${m.name}.`,
+              href: `/profile/${user.id}`,
+            });
+            setJoined(true);
+            toast.success("Enviamos tu solicitud al líder del ministerio");
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "No se pudo enviar la solicitud.");
+          }
         }}
       >
         {joined ? "Solicitud enviada" : "Quiero servir aquí"}

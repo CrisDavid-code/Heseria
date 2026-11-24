@@ -23,6 +23,9 @@ import { preferencesStore, useLibrary, usePreferences } from "@/store";
 import { useScreen } from "@/store/screen";
 import { cn } from "@/lib/utils";
 import { bibleBooks } from "@/store/directory";
+import { useCoupleSync } from "@/lib/couple-sync";
+
+const bookName = (id: string) => bibleBooks.find((b) => b.id === id)?.name ?? id;
 
 const HIGHLIGHT_COLORS = [
   { id: "amarillo", label: "Amarillo", className: "bg-amber-400/30" },
@@ -59,6 +62,8 @@ export default function BibleChapter() {
   const speechParts = useMemo(() => spoken.map((v) => v.text), [spoken]);
   const speech = useSpeech(speechParts);
   const speakingVerse = speech.state === "playing" ? spoken[speech.index]?.number : null;
+
+  useCoupleSync(book, chapterNumber, bookName);
 
   // «Continuar leyendo»: se guarda dónde se quedó, en el teléfono y en la cuenta.
   useEffect(() => {

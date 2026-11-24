@@ -15,8 +15,8 @@ import {
   connectAuthEmulator, createUserWithEmailAndPassword, getAuth, signInWithEmailAndPassword,
 } from "firebase/auth";
 import {
-  addDoc, collection, connectFirestoreEmulator, deleteDoc, doc, getDoc, getDocs, getFirestore,
-  increment, query, serverTimestamp, setDoc, updateDoc, where, writeBatch,
+  addDoc, arrayRemove, arrayUnion, collection, connectFirestoreEmulator, deleteDoc, doc, getDoc, getDocs, getFirestore,
+  increment, query, serverTimestamp, setDoc, Timestamp, updateDoc, where, writeBatch,
 } from "firebase/firestore";
 
 const PROJECT = "demo-heseria";
@@ -224,6 +224,78 @@ await allowed("Ana lo da de baja", () => deleteDoc(doc(ana.db, "pushTokens", "to
   await allowed("cualquiera ve el catálogo de radio", () => getDoc(doc(ana.db, "radios", "r1")));
   await denied("Ana no agrega radios", () => setDoc(doc(ana.db, "radios", "r2"), radio));
   await denied("ni una URL sin https", () => setDoc(doc(owner.db, "radios", "r3"), { ...radio, streamUrl: "http://inseguro.example/live" }));
+}
+{
+  // Lista de estudiantes del curso: cada quien su fila; la ve el docente del curso.
+  await allowed("la administración crea un curso con su docente", () => setDoc(doc(owner.db, "courses", "cur1"), { title: "Fundamentos", instructorId: beto.uid, students: 0 }));
+  await allowed("Ana se anota en la lista del curso", () => setDoc(doc(ana.db, "courses/cur1/students", ana.uid), { name: "Ana Prueba", progress: 0, updatedAt: serverTimestamp() }));
+  await denied("Ana no anota a otra persona", () => setDoc(doc(ana.db, "courses/cur1/students", "otro"), { name: "X", progress: 0, updatedAt: serverTimestamp() }));
+  await denied("ni pone un progreso imposible", () => setDoc(doc(ana.db, "courses/cur1/students", ana.uid), { name: "Ana", progress: 500, updatedAt: serverTimestamp() }));
+  await allowed("el docente (Beto) ve a sus estudiantes", () => getDocs(collection(beto.db, "courses/cur1/students")));
+  const ceci2 = await person("ceci.estudiante@prueba.com");
+  await denied("otra persona no ve la lista del curso", () => getDocs(collection(ceci2.db, "courses/cur1/students")));
+  await deleteApp(ceci2.app);
+}
+{
+  // Parejas: solo con el código, una sola vez, y nadie de fuera ve la pareja.
+  const exp = Timestamp.fromMillis(Date.now() + 7 * 864e5);
+  await allowed("Ana crea un código de pareja", () => setDoc(doc(ana.db, "coupleInvites", "ABCD2345"), { from: ana.uid, fromName: "Ana", used: false, createdAt: serverTimestamp(), expiresAt: exp }));
+  await denied("nadie lista los códigos", () => getDocs(collection(beto.db, "coupleInvites")));
+  await denied("Beto no inventa una pareja sin usar el código", () => setDoc(doc(beto.db, "couples", "c0"), { members: [ana.uid, beto.uid], names: {}, invite: "ABCD2345", passage: null, createdAt: serverTimestamp() }));
+  await allowed("Beto acepta el código y se forma la pareja", () => {
+    const b = writeBatch(beto.db);
+    b.set(doc(beto.db, "couples", "c1"), { members: [ana.uid, beto.uid], names: { [ana.uid]: "Ana", [beto.uid]: "Beto" }, invite: "ABCD2345", passage: null, createdAt: serverTimestamp() });
+    b.update(doc(beto.db, "coupleInvites", "ABCD2345"), { used: true, coupleId: "c1" });
+    return b.commit();
+  });
+  const ceci3 = await person("ceci.pareja@prueba.com");
+  await denied("el código ya no sirve una segunda vez", () => {
+    const b = writeBatch(ceci3.db);
+    b.set(doc(ceci3.db, "couples", "c2"), { members: [ana.uid, ceci3.uid], names: {}, invite: "ABCD2345", passage: null, createdAt: serverTimestamp() });
+    b.update(doc(ceci3.db, "coupleInvites", "ABCD2345"), { used: true, coupleId: "c2" });
+    return b.commit();
+  });
+  await allowed("Ana ve su pareja", () => getDocs(query(collection(ana.db, "couples"), where("members", "array-contains", ana.uid))));
+  await denied("otra persona no ve la pareja", () => getDoc(doc(ceci3.db, "couples", "c1")));
+  await denied("ni la administración", () => getDoc(doc(owner.db, "couples", "c1")));
+  await allowed("Beto lleva a los dos a Juan 3", () => updateDoc(doc(beto.db, "couples", "c1"), { passage: { book: "juan", chapter: 3, by: beto.uid } }));
+  await denied("nadie cambia a los miembros", () => updateDoc(doc(beto.db, "couples", "c1"), { members: [beto.uid, ceci3.uid] }));
+  await allowed("Ana escribe una nota compartida", () => setDoc(doc(ana.db, "couples/c1/notes", "n1"), { authorId: ana.uid, body: "Oremos por la semana", ref: "", createdAt: serverTimestamp() }));
+  await allowed("Beto la lee", () => getDocs(collection(beto.db, "couples/c1/notes")));
+  await denied("otra persona no lee las notas", () => getDocs(collection(ceci3.db, "couples/c1/notes")));
+  await allowed("cualquiera de los dos desvincula", async () => { await deleteDoc(doc(beto.db, "couples/c1/notes", "n1")); await deleteDoc(doc(beto.db, "couples", "c1")); });
+  await deleteApp(ceci3.app);
+}
+{
+  // Familia: solo sus miembros la ven; los perfiles infantiles, solo un tutor los edita.
+  await allowed("Ana crea su familia", () => setDoc(doc(ana.db, "families", "f1"), { name: "Familia Prueba", members: [ana.uid], roles: { [ana.uid]: "tutor" }, names: { [ana.uid]: "Ana" }, createdBy: ana.uid, createdAt: serverTimestamp() }));
+  await denied("nadie crea una familia a nombre de otra persona", () => setDoc(doc(beto.db, "families", "f2"), { name: "X", members: [ana.uid], roles: { [ana.uid]: "tutor" }, names: {}, createdBy: ana.uid, createdAt: serverTimestamp() }));
+  await allowed("Ana (tutora) agrega el perfil de su hija", () => setDoc(doc(ana.db, "families/f1/children", "h1"), { name: "Sofi", ageGroup: "6-8", avatar: "🦁", done: [], createdAt: serverTimestamp(), updatedAt: serverTimestamp() }));
+  await denied("un perfil infantil no guarda datos de contacto", () => setDoc(doc(ana.db, "families/f1/children", "h2"), { name: "Sofi", ageGroup: "6-8", done: [], phone: "5555", createdAt: serverTimestamp() }));
+  await denied("Beto no ve la familia sin entrar", () => getDoc(doc(beto.db, "families", "f1")));
+  await denied("ni la administración", () => getDocs(collection(owner.db, "families/f1/children")));
+  await denied("Beto no se agrega sin código", () => updateDoc(doc(beto.db, "families", "f1"), { members: arrayUnion(beto.uid), [`roles.${beto.uid}`]: "miembro" }));
+  await allowed("Ana crea un código de familia", () => setDoc(doc(ana.db, "familyInvites", "FAMI2345"), { familyId: "f1", createdBy: ana.uid, createdAt: serverTimestamp(), expiresAt: Timestamp.fromMillis(Date.now() + 7 * 864e5) }));
+  await denied("Beto no entra como tutor", () => updateDoc(doc(beto.db, "families", "f1"), { members: arrayUnion(beto.uid), [`roles.${beto.uid}`]: "tutor", joinedWith: "FAMI2345" }));
+  await allowed("Beto entra con el código como miembro", () => updateDoc(doc(beto.db, "families", "f1"), { members: arrayUnion(beto.uid), [`roles.${beto.uid}`]: "miembro", [`names.${beto.uid}`]: "Beto", joinedWith: "FAMI2345" }));
+  await allowed("Beto ve el perfil de Sofi", () => getDocs(collection(beto.db, "families/f1/children")));
+  await denied("pero Beto (miembro) no lo edita", () => updateDoc(doc(beto.db, "families/f1/children", "h1"), { name: "Otra" }));
+  await denied("ni se hace tutor solo", () => updateDoc(doc(beto.db, "families", "f1"), { [`roles.${beto.uid}`]: "tutor" }));
+  await allowed("Beto puede salirse", () => updateDoc(doc(beto.db, "families", "f1"), { members: arrayRemove(beto.uid) }));
+}
+{
+  const lic = { item: "Reina-Valera 1960", kind: "biblia", holder: "Sociedades Bíblicas Unidas", license: "", status: "pendiente", scopes: ["texto", "voz"], updatedAt: serverTimestamp() };
+  await allowed("la administración registra una licencia", () => setDoc(doc(owner.db, "licenses", "l1"), lic));
+  await denied("nadie más ve el registro de licencias", () => getDocs(collection(ana.db, "licenses")));
+  await denied("ni marca una licencia como concedida", () => setDoc(doc(ana.db, "licenses", "l2"), { ...lic, status: "concedida" }));
+  await denied("un estado inventado no entra", () => setDoc(doc(owner.db, "licenses", "l3"), { ...lic, status: "quizas" }));
+}
+{
+  const book = { title: "Libro de prueba", author: "Autor", format: "epub", url: "https://libros.example.org/a.epub", license: "Dominio público", source: "", status: "activo", updatedAt: serverTimestamp() };
+  await allowed("la administración publica un libro", () => setDoc(doc(owner.db, "books", "b1"), book));
+  await allowed("cualquiera ve la biblioteca", () => getDoc(doc(ana.db, "books", "b1")));
+  await denied("Ana no publica libros", () => setDoc(doc(ana.db, "books", "b2"), book));
+  await denied("ni sin licencia indicada", () => setDoc(doc(owner.db, "books", "b3"), { ...book, license: "" }));
 }
 await denied("un pastor no abre una colecta", () => setDoc(doc(beto.db, "foundationCases", "mi-colecta"), { title: "Ayuda para mí", goal: 1000 }));
 await denied("nadie cambia a dónde llega el dinero", () => setDoc(doc(beto.db, "settings", "payments"), { methods: [{ type: "paypal", handle: "estafador" }] }));

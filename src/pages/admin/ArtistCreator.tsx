@@ -1,6 +1,7 @@
 import {
   BarChart3, CalendarDays, Disc3, FileText, Music, Plus, Radio, Upload, Video, Users,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -45,7 +46,7 @@ export function ArtistDashboard() {
       <KpiRow kpis={kpis.data} />
       <QuickActions
         actions={[
-          { label: "Subir canción", icon: Upload, onClick: () => toast.success("Subida iniciada") },
+          { label: "Subir canción", icon: Upload, href: "/artist/songs" },
           { label: "Nuevo álbum", icon: Disc3, href: "/artist/albums" },
           { label: "Subir video", icon: Video, href: "/artist/videos" },
           { label: "Crear evento", icon: CalendarDays, href: "/artist/events" },
@@ -311,6 +312,7 @@ export function CreatorContent() {
 }
 
 export function CreatorPosts() {
+  const navigate = useNavigate();
   usePageMeta("Publicaciones", "Tus publicaciones en la comunidad.");
   useScreen({ title: "Publicaciones", back: true, hideSections: true });
   const posts = useAsync(() => communityService.feed(), []);
@@ -327,10 +329,10 @@ export function CreatorPosts() {
 
   return (
     <div className="space-y-4">
-      <Button full onClick={() => toast.success("Abriendo el editor")}>
+      <Button full onClick={() => navigate("/community")}>
         <Plus className="size-4" /> Nueva publicación
       </Button>
-      <AdminList rows={rows} selectable onRowAction={() => toast.info("Abriendo publicación")} />
+      <AdminList rows={rows} />
     </div>
   );
 }

@@ -18,7 +18,7 @@
     "test:rules": "firebase emulators:exec --only firestore,auth --project demo-heseria \"node tests/rules.test.mjs\"",
     "deploy:web": "npm run build && firebase deploy --only hosting",
     "deploy:rules": "node scripts/publicar-reglas.cjs",
-    "test": "node tests/memorize.test.mjs"
+    "test": "node tests/memorize.test.mjs && node tests/reference.test.mjs"
   },
   "dependencies": {
     "@capacitor-community/text-to-speech": "^8.0.2",
@@ -59,8 +59,10 @@
     "@radix-ui/react-tooltip": "^1.2.7",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "epubjs": "^0.3.93",
     "firebase": "^12.19.0",
     "lucide-react": "^0.544.0",
+    "pdfjs-dist": "^4.10.38",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.8.2",
@@ -69,6 +71,7 @@
     "tailwind-merge": "^3.3.1"
   },
   "devDependencies": {
+    "@anthropic-ai/sdk": "^1.13.0",
     "@csstools/postcss-cascade-layers": "^6.0.2",
     "@tailwindcss/vite": "^4.1.13",
     "@types/node": "^22.15.0",

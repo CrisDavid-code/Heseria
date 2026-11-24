@@ -2,6 +2,7 @@ import {
   Activity, AlertTriangle, Radio as RadioIcon, BarChart3, Church, Film, FileText, Flag, GraduationCap, HandHeart,
   Image, CalendarDays, Megaphone, MessageSquareWarning, Settings as SettingsIcon, ShieldCheck, Users,
 } from "lucide-react";
+import { saveFile } from "@/native";
 import { isSuperAdmin } from "@/lib/permissions";
 import { useSession } from "@/store";
 import { useState } from "react";
@@ -37,6 +38,8 @@ const SECTIONS = [
   { label: "Contenido", href: "/admin/content", icon: FileText, description: "Videos y publicaciones" },
   { label: "Medios", href: "/admin/media", icon: Film, description: "Música, videos y sermones" },
   { label: "Radios", href: "/admin/radios", icon: RadioIcon, description: "Emisoras en vivo verificadas" },
+  { label: "Licencias", href: "/admin/licenses", icon: FileText, description: "Permisos y atribuciones" },
+  { label: "Biblioteca", href: "/admin/books", icon: FileText, description: "Libros del lector" },
   { label: "Cursos", href: "/admin/courses", icon: GraduationCap, description: "Catálogo de la academia" },
   { label: "Eventos", href: "/admin/events", icon: CalendarDays, description: "Agenda global" },
   { label: "Notificaciones", href: "/admin/notifications", icon: Megaphone, description: "Envíos manuales y automáticos" },
@@ -425,7 +428,24 @@ export function AdminReports() {
       <TrendChart title="Crecimiento de usuarios" data={series.data} />
       <BarsChart title="Publicaciones por categoría" data={breakdown.data} />
       <BreakdownChart title="Distribución de consumo" data={breakdown.data} />
-      <Button variant="outline" full onClick={() => toast.info("La exportación llegará con el backend")}>
+      <Button
+        variant="outline"
+        full
+        disabled={!kpis.data}
+        onClick={async () => {
+          // CSV real con las cifras que se ven en pantalla (se abre en Excel o Google Sheets).
+          const q = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+          const rows = [
+            ["Sección", "Dato", "Valor"],
+            ...(kpis.data ?? []).map((k) => ["Indicadores", k.label, k.value]),
+            ...(series.data ?? []).map((p) => ["Crecimiento de usuarios", p.label, p.value]),
+            ...(breakdown.data ?? []).map((p) => ["Distribución", p.label, p.value]),
+          ];
+          const csv = "\uFEFF" + rows.map((r) => r.map(q).join(",")).join("\n");
+          await saveFile(new Blob([csv], { type: "text/csv;charset=utf-8" }), `heseria-informe-${new Date().toISOString().slice(0, 10)}.csv`);
+          toast.success("Informe exportado");
+        }}
+      >
         Exportar informe
       </Button>
     </div>
@@ -694,44 +714,14 @@ export function AdminSettings() {
 
   return (
     <div className="space-y-5">
-      <section className="surface-card p-4">
-        <h2 className="mb-3 text-sm font-semibold">Plataforma</h2>
-        <div className="space-y-3">
-          <Field label="Nombre público" htmlFor="pf-name">
-            <Input id="pf-name" defaultValue="Heseria" />
-          </Field>
-          <Field label="Correo de soporte" htmlFor="pf-mail">
-            <Input id="pf-mail" defaultValue="soporte@heseria.app" />
-          </Field>
-        </div>
+      <section className="surface-card p-4 text-sm">
+        <h2 className="mb-2 font-semibold">Registro, acceso y moderación</h2>
+        <p className="text-muted-foreground">
+          El acceso se configura en Firebase (Authentication: correo y contraseña) y se activa solo al publicar.
+          La moderación es manual desde Administración → Moderación y Comentarios. Los roles se asignan en
+          Administración → Usuarios.
+        </p>
       </section>
-
-      <section className="surface-card p-4">
-        <h2 className="mb-1 text-sm font-semibold">Registro y acceso</h2>
-        <SettingRow title="Registro abierto" description="Cualquiera puede crear una cuenta.">
-          <Switch defaultChecked aria-label="Registro abierto" />
-        </SettingRow>
-        <SettingRow title="Verificación de iglesias" description="Requiere revisión manual del equipo.">
-          <Switch defaultChecked aria-label="Verificación de iglesias" />
-        </SettingRow>
-        <SettingRow title="Publicación directa" description="El contenido se publica sin revisión previa.">
-          <Switch aria-label="Publicación directa" />
-        </SettingRow>
-      </section>
-
-      <section className="surface-card p-4">
-        <h2 className="mb-1 text-sm font-semibold">Moderación</h2>
-        <SettingRow title="Moderación automática" description="Se activará al conectar el servicio.">
-          <Switch disabled aria-label="Moderación automática" />
-        </SettingRow>
-        <SettingRow title="Bloqueo automático de severidad alta" description="Retira el contenido hasta revisarlo.">
-          <Switch defaultChecked aria-label="Bloqueo automático" />
-        </SettingRow>
-      </section>
-
-      <Button full onClick={() => toast.success("Configuración guardada")}>
-        Guardar cambios
-      </Button>
     </div>
   );
 }

@@ -30,3 +30,5 @@ public/biblia/ntv/
 public/biblia/lbla/
 public/biblia/dhh/
 public/biblia/tla/
+.dev.vars
+.wrangler/

@@ -8,6 +8,7 @@ import { Badge, Chip, Input, Progress } from "@/components/ui/primitives";
 import { useAsync } from "@/hooks/useAsync";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { bibleService, readingStateService } from "@/services";
+import { parseReference } from "@/lib/reference";
 import { preferencesStore, usePreferences } from "@/store";
 import { useScreen } from "@/store/screen";
 import { cn } from "@/lib/utils";
@@ -52,9 +53,11 @@ export default function BibleIndex() {
 
   const activeVersion = versions.data?.find((v) => v.id === bibleVersion);
 
+  const jump = useMemo(() => (books.data ? parseReference(query, books.data) : null), [books.data, query]);
+
   const filtered = useMemo(() => {
     const list = books.data ?? [];
-    if (!query.trim()) return list;
+    if (!query.trim() || jump) return list;
     const q = query.toLowerCase();
     return list.filter((b) => b.name.toLowerCase().includes(q));
   }, [books.data, query]);
@@ -137,11 +140,25 @@ export default function BibleIndex() {
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Buscar libro"
-          aria-label="Buscar libro de la Biblia"
+          placeholder="Buscar libro o referencia (Juan 3:16)"
+          aria-label="Buscar libro o referencia de la Biblia"
           className="h-11 rounded-full pl-10"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && jump) navigate(`/bible/${jump.book.id}/${jump.chapter}`);
+          }}
         />
       </div>
+      {jump && (
+        <button
+          type="button"
+          onClick={() => navigate(`/bible/${jump.book.id}/${jump.chapter}`)}
+          className="flex w-full items-center gap-2 rounded-2xl border border-primary/30 bg-primary/10 p-3 text-left text-sm font-medium"
+        >
+          <BookOpen className="size-4 text-primary" aria-hidden />
+          Ir a {jump.book.name} {jump.chapter}{jump.verse ? `:${jump.verse}` : ""}
+          <ChevronRight className="ml-auto size-4 text-muted-foreground" aria-hidden />
+        </button>
+      )}
 
       <Tabs defaultValue="at">
         <TabsList>

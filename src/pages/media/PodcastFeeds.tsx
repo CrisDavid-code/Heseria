@@ -10,6 +10,8 @@ import {
   Clock,
   Download,
   Headphones,
+  Pause,
+  Play,
   Plus,
   RefreshCw,
   Rss,
@@ -30,7 +32,7 @@ import { downloadToDevice, mediaUrl } from "@/services/api";
 import {
   libraryService, podcastFeedService, type PodcastEpisode, type PodcastFeed,
 } from "@/services";
-import { useSession } from "@/store";
+import { savedPosition, usePlayer, useSession } from "@/store";
 import { useScreen } from "@/store/screen";
 import { cn, formatDate, formatLength } from "@/lib/utils";
 
@@ -80,8 +82,17 @@ function ShowCover({
 
 /* ------------------------------------------------------------ episodio */
 
-export function EpisodeRow({ episode }: { episode: PodcastEpisode }) {
+/** Un episodio como pista del reproductor global (recuerda dónde se quedó y sigue al siguiente). */
+const toTrack = (e: PodcastEpisode) => ({
+  id: `ep-${e.id}`, title: e.title, subtitle: e.showTitle, color: e.color, durationSec: e.durationSec || 0,
+  src: mediaUrl(e.audioUrl),
+});
+
+export function EpisodeRow({ episode, list = [episode] }: { episode: PodcastEpisode; list?: PodcastEpisode[] }) {
   const [percent, setPercent] = useState<number | null>(null);
+  const player = usePlayer();
+  const playing = player.track?.id === `ep-${episode.id}` && player.playing;
+  const progress = savedPosition(`ep-${episode.id}`);
 
   async function download() {
     setPercent(0);
@@ -137,18 +148,23 @@ export function EpisodeRow({ episode }: { episode: PodcastEpisode }) {
       )}
 
       {/*
-        El audio se reproduce directo desde el servidor de quien publica el
-        podcast: un <audio> no necesita permisos CORS para sonar.
+        El audio suena desde el servidor de quien publica el podcast, en el reproductor global:
+        sigue al cambiar de pantalla, tiene velocidad, temporizador y recuerda la posición.
       */}
-      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-      <audio
-        src={mediaUrl(episode.audioUrl)}
-        controls
-        preload="none"
-        className="mt-3 w-full"
+      <Button
+        size="sm"
+        className="mt-3"
+        variant={playing ? "subtle" : "primary"}
+        onClick={() => {
+          if (playing) return player.toggle();
+          // Cola: este episodio y los siguientes de la lista (se pasa solo al terminar).
+          const i = list.findIndex((x) => x.id === episode.id);
+          player.play(list.slice(Math.max(0, i)).map(toTrack), 0);
+        }}
       >
-        Tu navegador no puede reproducir este audio.
-      </audio>
+        {playing ? <Pause className="size-3.5" /> : <Play className="size-3.5 fill-current" />}
+        {playing ? "Pausar" : progress > 10 ? `Continuar (${formatLength(progress)})` : "Reproducir"}
+      </Button>
 
       <div className="mt-2 flex items-center justify-between gap-2">
         <span className="text-[0.68rem] text-muted-foreground">
@@ -247,7 +263,7 @@ export function PodcastFeedsList() {
             ) : (
               <div className="space-y-3">
                 {items.map((e) => (
-                  <EpisodeRow key={e.id} episode={e} />
+                  <EpisodeRow key={e.id} episode={e} list={items} />
                 ))}
               </div>
             )
@@ -415,7 +431,7 @@ export function PodcastFeedDetail() {
         <h2 className="mb-3 text-section font-semibold tracking-tight">Episodios</h2>
         <div className="space-y-3">
           {f.items.map((e) => (
-            <EpisodeRow key={e.id} episode={e} />
+            <EpisodeRow key={e.id} episode={e} list={f.items} />
           ))}
         </div>
       </section>

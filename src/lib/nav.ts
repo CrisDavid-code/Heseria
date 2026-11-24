@@ -70,7 +70,7 @@ export const TABS: TabDef[] = [
     labelKey: "nav.bible",
     href: "/bible",
     icon: BookOpen,
-    match: ["/bible", "/devotionals", "/plans", "/prayer", "/diario", "/memorizar"],
+    match: ["/bible", "/devotionals", "/plans", "/prayer", "/diario", "/memorizar", "/asistente"],
     sections: [
       { label: "Biblia", href: "/bible" },
       { label: "Devocionales", href: "/devotionals" },
@@ -78,6 +78,7 @@ export const TABS: TabDef[] = [
       { label: "Memorizar", href: "/memorizar" },
       { label: "Mi diario", href: "/diario" },
       { label: "Oración", href: "/prayer" },
+      { label: "Asistente IA", href: "/asistente" },
     ],
   },
   {
@@ -86,11 +87,13 @@ export const TABS: TabDef[] = [
     labelKey: "nav.community",
     href: "/community",
     icon: Users,
-    match: ["/community", "/groups", "/messages", "/calls", "/churches", "/my-church", "/events", "/ministries"],
+    match: ["/community", "/groups", "/messages", "/calls", "/churches", "/my-church", "/events", "/ministries", "/pareja", "/familia"],
     sections: [
       { label: "Feed", href: "/community" },
       { label: "Grupos", href: "/groups" },
       { label: "Mensajes", href: "/messages" },
+      { label: "Pareja", href: "/pareja" },
+      { label: "Familia", href: "/familia" },
       { label: "Iglesias", href: "/churches" },
       { label: "Eventos", href: "/events" },
       { label: "Ministerios", href: "/ministries" },
@@ -102,9 +105,10 @@ export const TABS: TabDef[] = [
     labelKey: "nav.library",
     href: "/library",
     icon: Library,
-    match: ["/library", "/foundation"],
+    match: ["/library", "/foundation", "/lector"],
     sections: [
       { label: "Guardados", href: "/library?tab=guardados" },
+      { label: "Lector", href: "/lector" },
       { label: "Música", href: "/library?tab=musica" },
       { label: "Videos", href: "/library?tab=videos" },
       { label: "Cursos", href: "/library?tab=cursos" },

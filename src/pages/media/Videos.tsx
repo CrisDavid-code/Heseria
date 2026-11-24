@@ -12,7 +12,7 @@ import { Badge, Chip } from "@/components/ui/primitives";
 import { useAsync } from "@/hooks/useAsync";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { share, shareUrl } from "@/native";
-import { videoService } from "@/services";
+import { communityService, videoService } from "@/services";
 import { useLibrary } from "@/store";
 import { useScreen } from "@/store/screen";
 import { users } from "@/store/directory";
@@ -136,7 +136,14 @@ export function VideoDetail() {
         >
           <Share2 className="size-3.5" /> Compartir
         </Button>
-        <Button size="sm" variant="outline" onClick={() => toast.success("Gracias, lo revisaremos")}>
+        <Button size="sm" variant="outline" onClick={async () => {
+          try {
+            await communityService.report(`video:${v.id}`, "Video reportado por un usuario");
+            toast.success("Gracias, lo revisaremos");
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "No se pudo enviar el reporte.");
+          }
+        }}>
           Reportar
         </Button>
       </div>
