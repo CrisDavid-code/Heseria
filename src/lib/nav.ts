@@ -70,7 +70,7 @@ export const TABS: TabDef[] = [
     labelKey: "nav.bible",
     href: "/bible",
     icon: BookOpen,
-    match: ["/bible", "/devotionals", "/plans", "/prayer", "/diario", "/memorizar"],
+    match: ["/bible", "/devotionals", "/plans", "/prayer", "/diario", "/memorizar", "/asistente"],
     sections: [
       { label: "Biblia", href: "/bible" },
       { label: "Devocionales", href: "/devotionals" },
@@ -78,6 +78,7 @@ export const TABS: TabDef[] = [
       { label: "Memorizar", href: "/memorizar" },
       { label: "Mi diario", href: "/diario" },
       { label: "Oración", href: "/prayer" },
+      { label: "Asistente IA", href: "/asistente" },
     ],
   },
   {

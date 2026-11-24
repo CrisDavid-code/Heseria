@@ -3,12 +3,13 @@
 #   CLOUDFLARE_API_TOKEN   token con la plantilla «Edit Cloudflare Workers»
 #   CLOUDFLARE_ACCOUNT_ID  id de la cuenta de Cloudflare
 #   FIREBASE_SERVICE_ACCOUNT_HESERIA  (ya existe) se guarda como secreto del Worker
+#   ANTHROPIC_API_KEY      (opcional) activa el asistente bíblico; sin ella responde «no configurado»
 name: Servidor push
 
 on:
   push:
     branches: [main]
-    paths: ['workers/push/**', 'src/data/daily-verses.ts', '.github/workflows/push-worker.yml']
+    paths: ['workers/push/**', 'package-lock.json', 'src/data/daily-verses.ts', '.github/workflows/push-worker.yml']
   workflow_dispatch:
 
 permissions:
@@ -23,11 +24,13 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_HESERIA }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - run: npm ci --ignore-scripts
       - name: Faltan los secretos de Cloudflare
         if: env.CLOUDFLARE_API_TOKEN == '' || env.CLOUDFLARE_ACCOUNT_ID == ''
         run: |
@@ -39,5 +42,6 @@ jobs:
           set -o pipefail
           npx --yes wrangler@4 deploy | tee deploy.log
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT" | npx --yes wrangler@4 secret put FIREBASE_SERVICE_ACCOUNT
+          if [ -n "$ANTHROPIC_API_KEY" ]; then printf '%s' "$ANTHROPIC_API_KEY" | npx --yes wrangler@4 secret put ANTHROPIC_API_KEY; fi
           echo "### Servidor push" >> "$GITHUB_STEP_SUMMARY"
           grep -o 'https://[^ ]*workers.dev' deploy.log | head -1 >> "$GITHUB_STEP_SUMMARY"
