@@ -115,7 +115,7 @@ export function SermonDetail() {
             toast.success(saved ? "Quitado de guardados" : "Guardado en tu biblioteca");
           }}
         >
-          <Heart className={saved ? "size-4 fill-current text-primary" : "size-4"} />
+          <Heart className={saved ? "size-4 fill-rose-500 text-rose-500" : "size-4"} />
           {saved ? "Guardado" : "Guardar"}
         </Button>
         <Button

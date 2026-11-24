@@ -19,7 +19,6 @@ import { artists, users } from "@/store/directory";
 
 const TABS = [
   { id: "guardados", label: "Guardados" },
-  { id: "musica", label: "Música" },
   { id: "videos", label: "Videos" },
   { id: "cursos", label: "Cursos" },
   { id: "historial", label: "Historial" },
@@ -49,23 +48,6 @@ export default function Library() {
 
   return (
     <div className="space-y-5">
-      <div className="scroll-x -mx-4 flex gap-2 px-4">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setParams({ tab: t.id })}
-            className={
-              tab === t.id
-                ? "shrink-0 rounded-full border border-primary/40 bg-primary/15 px-3.5 py-1.5 text-xs font-medium text-primary"
-                : "shrink-0 rounded-full border border-border px-3.5 py-1.5 text-xs text-muted-foreground active:bg-secondary"
-            }
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
       {tab === "guardados" && (
         <div className="space-y-7">
           <section>
@@ -99,60 +81,6 @@ export default function Library() {
             </div>
           </section>
 
-        </div>
-      )}
-
-      {tab === "musica" && (
-        <div className="space-y-7">
-          <section>
-            <h2 className="mb-3 text-section font-semibold tracking-tight">Playlists</h2>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-              {playlists.data?.map((p) => (
-                <MediaCard
-                  key={p.id}
-                  to={`/music/playlists/${p.id}`}
-                  seed={p.id}
-                  gradient={p.color}
-                  title={p.title}
-                  subtitle={`${p.trackIds.length} canciones`}
-                  icon={ListMusic}
-                />
-              ))}
-            </div>
-          </section>
-
-          <section>
-            <div className="mb-3 flex items-end justify-between">
-              <h2 className="text-section font-semibold tracking-tight">Canciones guardadas</h2>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  if (songs.data) {
-                    player.play(songs.data.map(trackFromSong));
-                    toast.success("Reproduciendo tu biblioteca");
-                  }
-                }}
-              >
-                Reproducir
-              </Button>
-            </div>
-            {songs.loading ? (
-              <ListSkeleton />
-            ) : (
-              <div className="space-y-0.5">
-                {songs.data?.map((s, i) => (
-                  <SongRow
-                    key={s.id}
-                    song={s}
-                    index={i}
-                    artistName={artistName(s.artistId)}
-                    onPlay={() => songs.data && player.play(songs.data.map(trackFromSong), i)}
-                  />
-                ))}
-              </div>
-            )}
-          </section>
         </div>
       )}
 

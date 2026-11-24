@@ -37,13 +37,6 @@ const PrayerList = lazy(() =>
 );
 const PrayerNew = lazy(() => import("@/pages/growth/Prayer").then((m) => ({ default: m.PrayerNew })));
 
-const music = () => import("@/pages/music/Music");
-const MusicIndex = lazy(() => music().then((m) => ({ default: m.MusicIndex })));
-const ArtistsList = lazy(() => music().then((m) => ({ default: m.ArtistsList })));
-const ArtistDetail = lazy(() => music().then((m) => ({ default: m.ArtistDetail })));
-const AlbumDetail = lazy(() => music().then((m) => ({ default: m.AlbumDetail })));
-const PlaylistsList = lazy(() => music().then((m) => ({ default: m.PlaylistsList })));
-const PlaylistDetail = lazy(() => music().then((m) => ({ default: m.PlaylistDetail })));
 
 const podcasts = () => import("@/pages/media/Podcasts");
 const PodcastsList = lazy(() => podcasts().then((m) => ({ default: m.PodcastsList })));
@@ -135,13 +128,6 @@ const TeacherCertificates = lazy(() => te().then((m) => ({ default: m.TeacherCer
 const TeacherAnalytics = lazy(() => te().then((m) => ({ default: m.TeacherAnalytics })));
 
 const ac = () => import("@/pages/admin/ArtistCreator");
-const ArtistDashboard = lazy(() => ac().then((m) => ({ default: m.ArtistDashboard })));
-const ArtistMusic = lazy(() => ac().then((m) => ({ default: m.ArtistMusic })));
-const ArtistAlbums = lazy(() => ac().then((m) => ({ default: m.ArtistAlbums })));
-const ArtistSongs = lazy(() => ac().then((m) => ({ default: m.ArtistSongs })));
-const ArtistVideos = lazy(() => ac().then((m) => ({ default: m.ArtistVideos })));
-const ArtistEvents = lazy(() => ac().then((m) => ({ default: m.ArtistEvents })));
-const ArtistAnalytics = lazy(() => ac().then((m) => ({ default: m.ArtistAnalytics })));
 const CreatorDashboard = lazy(() => ac().then((m) => ({ default: m.CreatorDashboard })));
 const CreatorContent = lazy(() => ac().then((m) => ({ default: m.CreatorContent })));
 const CreatorPosts = lazy(() => ac().then((m) => ({ default: m.CreatorPosts })));
@@ -229,12 +215,6 @@ export function App() {
             <Route path="/memorizar" element={<Memorize />} />
             <Route path="/radio" element={<Radio />} />
 
-            <Route path="/music" element={<MusicIndex />} />
-            <Route path="/music/artists" element={<ArtistsList />} />
-            <Route path="/music/artists/:id" element={<ArtistDetail />} />
-            <Route path="/music/albums/:id" element={<AlbumDetail />} />
-            <Route path="/music/playlists" element={<PlaylistsList />} />
-            <Route path="/music/playlists/:id" element={<PlaylistDetail />} />
 
             <Route path="/podcasts" element={<PodcastsList />} />
             <Route path="/podcasts/suscritos" element={<PodcastFeedsList />} />
@@ -326,13 +306,6 @@ export function App() {
                 </RequirePermission>
               }
             >
-              <Route path="/artist" element={<ArtistDashboard />} />
-              <Route path="/artist/music" element={<ArtistMusic />} />
-              <Route path="/artist/albums" element={<ArtistAlbums />} />
-              <Route path="/artist/songs" element={<ArtistSongs />} />
-              <Route path="/artist/videos" element={<ArtistVideos />} />
-              <Route path="/artist/events" element={<ArtistEvents />} />
-              <Route path="/artist/analytics" element={<ArtistAnalytics />} />
             </Route>
 
             {/* Creator */}

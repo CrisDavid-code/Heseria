@@ -31,46 +31,8 @@ export default function Explore() {
         className="flex items-center gap-2.5 rounded-full border border-border bg-surface px-4 py-3 text-sm text-muted-foreground"
       >
         <Search className="size-4 shrink-0" />
-        Busca canciones, sermones, cursos, iglesias…
+        Busca sermones, podcasts, cursos, iglesias…
       </Link>
-
-      <section>
-        <h2 className="mb-3 text-section font-semibold tracking-tight">Categorías</h2>
-        <div className="grid grid-cols-2 gap-2.5">
-          {EXPLORE_CATEGORIES.map((c) => (
-            <Link key={c.href} to={c.href} className="group">
-              <GenerativeCover
-                seed={c.label}
-                gradient={c.gradient}
-                className="flex aspect-[2.4/1] items-center px-3.5 transition-transform active:scale-[0.98]"
-                label={c.label}
-              >
-                <span className="relative z-10 flex items-center gap-2">
-                  <c.icon className="size-4 text-white/90" />
-                  <span className="text-sm font-semibold text-white">{c.label}</span>
-                </span>
-              </GenerativeCover>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      <Rail title="Playlists para hoy" href="/music/playlists">
-        {playlists.loading ? (
-          <RailSkeleton />
-        ) : (
-          playlists.data?.map((p) => (
-            <MediaCard
-              key={p.id}
-              to={`/music/playlists/${p.id}`}
-              seed={p.id}
-              gradient={p.color}
-              title={p.title}
-              subtitle={`${p.trackIds.length} canciones`}
-            />
-          ))
-        )}
-      </Rail>
 
       <Rail title="Sermones recientes" size="wide" href="/sermons">
         {sermons.loading ? (

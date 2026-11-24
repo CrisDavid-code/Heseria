@@ -71,7 +71,6 @@ export function portalsFor(role: Role): { label: string; href: string }[] {
   const out: { label: string; href: string }[] = [];
   if (can(role, "canManageChurch")) out.push({ label: "Admin de iglesia", href: "/church-admin" });
   if (can(role, "canManageCourses")) out.push({ label: "Portal docente", href: "/teacher" });
-  if (role === "artist" || role === "musician") out.push({ label: "Portal de artista", href: "/artist" });
   if (role === "creator" || role === "admin") out.push({ label: "Portal de creador", href: "/creator" });
   if (can(role, "canModerate") && role !== "admin") out.push({ label: "Moderación", href: "/admin/moderation" });
   if (role === "admin") out.push({ label: "Administración global", href: "/admin" });

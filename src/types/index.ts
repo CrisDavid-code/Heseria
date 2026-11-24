@@ -62,6 +62,8 @@ export interface User {
 }
 
 export interface Church {
+  /** Traída en vivo del mapa (no está en el directorio de Heseria). */
+  live?: boolean;
   id: ID;
   name: string;
   denomination: string;

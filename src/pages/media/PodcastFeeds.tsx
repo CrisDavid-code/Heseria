@@ -157,9 +157,9 @@ export function EpisodeRow({ episode, list = [episode] }: { episode: PodcastEpis
         variant={playing ? "subtle" : "primary"}
         onClick={() => {
           if (playing) return player.toggle();
-          // Cola: este episodio y los siguientes de la lista (se pasa solo al terminar).
+          // Cola: toda la lista, empezando en este episodio: «anterior» y «siguiente» funcionan.
           const i = list.findIndex((x) => x.id === episode.id);
-          player.play(list.slice(Math.max(0, i)).map(toTrack), 0);
+          player.play(list.map(toTrack), Math.max(0, i));
         }}
       >
         {playing ? <Pause className="size-3.5" /> : <Play className="size-3.5 fill-current" />}

@@ -36,7 +36,7 @@ const SECTIONS = [
   { label: "Usuarios", href: "/admin/users", icon: Users, description: "Cuentas y roles" },
   { label: "Iglesias", href: "/admin/churches", icon: Church, description: "Directorio global" },
   { label: "Contenido", href: "/admin/content", icon: FileText, description: "Videos y publicaciones" },
-  { label: "Medios", href: "/admin/media", icon: Film, description: "Música, videos y sermones" },
+  { label: "Medios", href: "/admin/media", icon: Film, description: "Videos y sermones" },
   { label: "Radios", href: "/admin/radios", icon: RadioIcon, description: "Emisoras en vivo verificadas" },
   { label: "Licencias", href: "/admin/licenses", icon: FileText, description: "Permisos y atribuciones" },
   { label: "Biblioteca", href: "/admin/books", icon: FileText, description: "Libros del lector" },

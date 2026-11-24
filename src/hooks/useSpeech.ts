@@ -8,19 +8,23 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Capacitor } from "@capacitor/core";
+import { currentVoice } from "@/lib/voices";
 
 type State = "idle" | "playing" | "paused";
 const RATES = [0.75, 1, 1.25, 1.5] as const;
 
-async function speakOne(text: string, rate: number): Promise<void> {
+export async function speakOne(text: string, rate: number): Promise<void> {
+  const voice = await currentVoice();
   if (Capacitor.isNativePlatform()) {
     const { TextToSpeech } = await import("@capacitor-community/text-to-speech");
-    await TextToSpeech.speak({ text, lang: "es-ES", rate, category: "playback" });
+    await TextToSpeech.speak({ text, lang: voice?.lang ?? "es-US", rate, category: "playback", ...(voice ? { voice: voice.index } : {}) });
     return;
   }
   await new Promise<void>((resolve, reject) => {
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = "es-ES";
+    const v = voice && speechSynthesis.getVoices().find((x) => (x.voiceURI || x.name) === voice.id);
+    if (v) u.voice = v;
+    u.lang = v?.lang ?? "es-US";
     u.rate = rate;
     u.onend = () => resolve();
     u.onerror = (e) => (e.error === "interrupted" || e.error === "canceled" ? resolve() : reject(new Error(e.error)));
@@ -28,7 +32,7 @@ async function speakOne(text: string, rate: number): Promise<void> {
   });
 }
 
-async function stopAll() {
+export async function stopAll() {
   if (Capacitor.isNativePlatform()) {
     const { TextToSpeech } = await import("@capacitor-community/text-to-speech");
     await TextToSpeech.stop().catch(() => undefined);

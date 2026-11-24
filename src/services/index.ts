@@ -54,6 +54,7 @@ import {
 } from "firebase/firestore";
 import { Capacitor } from "@capacitor/core";
 import { auth, db } from "@/services/firebase";
+import { liveChurch, nearbyFromOsm } from "@/lib/osm-churches";
 import {
   AppError, col, colorFor, compressImage, fold, friendly, handleFrom, iso, list, me, ms,
   myIdOrNull, one, ref,
@@ -917,7 +918,8 @@ export const churchService: ChurchService = {
       return items.sort((a, b) => a.name.localeCompare(b.name));
     }),
 
-  get: (id) => friendly(() => one("churches", id, toChurch)),
+  get: (id) =>
+    friendly(async () => (await one("churches", id, toChurch).catch(() => null)) ?? liveChurch(id) ?? undefined),
 
   myChurch: () =>
     friendly(async () => {
@@ -956,10 +958,19 @@ export const churchService: ChurchService = {
     friendly(async () => {
       let items = await allChurches();
       if (q.denomination) items = items.filter((c) => fold(c.denomination) === fold(q.denomination!));
-      const max = Math.min(50, q.limit ?? 12);
+      const max = Math.min(300, q.limit ?? 12);
       if (q.lat == null || q.lng == null) {
         return { located: false, churches: items.slice(0, max).map((c) => ({ ...c, distanceKm: null })) };
       }
+      // Además, en vivo: todas las del mapa alrededor (si falla la red, quedan las del directorio).
+      const radius = q.radius ?? 10;
+      const fromMap = await nearbyFromOsm(q.lat, q.lng, radius).catch(() => [] as Church[]);
+      const known = new Set(items.map((c) => c.id));
+      const sameSpot = new Set(items.map((c) => `${fold(c.name)}|${c.lat?.toFixed(3)}|${c.lng?.toFixed(3)}`));
+      items = [
+        ...items,
+        ...fromMap.filter((c) => !known.has(c.id) && !sameSpot.has(`${fold(c.name)}|${c.lat?.toFixed(3)}|${c.lng?.toFixed(3)}`)),
+      ];
       const withDistance = items
         .filter((c) => c.lat != null && c.lng != null)
         .map((c) => ({ ...c, distanceKm: Math.round(distanceKm(q.lat!, q.lng!, c.lat!, c.lng!) * 10) / 10 }))
@@ -1288,6 +1299,7 @@ export interface PrayerService {
     visibility: PrayerRequest["visibility"];
   }): Promise<PrayerRequest>;
   pray(id: ID): Promise<{ prayingCount: number }>;
+  prayedByMe(id: ID): Promise<boolean>;
   markAnswered(id: ID): Promise<{ ok: boolean }>;
 }
 
@@ -1349,6 +1361,8 @@ export const prayerService: PrayerService = {
       });
       return (await one("prayers", docRef.id, toPrayer))!;
     }),
+
+  prayedByMe: (id: ID) => friendly(async () => (await getDoc(ref(`prayers/${id}/prayedBy`, me()))).exists()),
 
   pray: (id) =>
     friendly(async () => {
@@ -2601,8 +2615,6 @@ export const searchService: SearchService = {
           id: p.id, title: p.title, subtitle: `${p.days.length} días`, type: "Plan", href: `/plans/${p.id}`, color: p.color })),
         ...feeds.filter((f) => hit(`${f.title} ${f.author}`)).map((f) => ({
           id: f.id, title: f.title, subtitle: f.author, type: "Podcast", href: `/podcasts/feed/${f.id}`, color: f.color })),
-        ...songs.filter((s) => hit(s.title)).map((s) => ({
-          id: s.id, title: s.title, subtitle: s.genre, type: "Canción", href: `/content/${s.id}`, color: s.color })),
         ...videos.filter((v) => hit(v.title)).map((v) => ({
           id: v.id, title: v.title, subtitle: v.category, type: "Video", href: `/content/${v.id}`, color: v.color })),
         ...sermons.filter((s) => hit(s.title)).map((s) => ({
@@ -2886,7 +2898,6 @@ export const recommendationService: RecommendationService = {
         { title: "Planes de lectura", items: plans.slice(0, 10).map((p) => ({ id: p.id, title: p.title, subtitle: `${p.days.length} días`, href: `/plans/${p.id}`, color: p.color })) },
         { title: "Cursos para crecer", items: courses.slice(0, 10).map((c) => ({ id: c.id, title: c.title, subtitle: c.category, href: `/courses/${c.id}`, color: c.color })) },
         { title: "Podcasts recientes", items: episodes.map((e) => ({ id: e.id, title: e.title, subtitle: e.showTitle, href: `/podcasts/feed/${e.feedId}`, color: e.color })) },
-        { title: "Música recomendada", items: songs.slice(0, 10).map((s) => ({ id: s.id, title: s.title, subtitle: s.genre, href: `/content/${s.id}`, color: s.color })) },
       ];
       return rows.filter((r) => r.items.length > 0);
     }),
@@ -3831,6 +3842,33 @@ export const bookService = {
       else await addDoc(col("books"), data);
     }),
   remove: (id: ID) => friendly(() => deleteDoc(ref("books", id))),
+};
+
+/* ================================================================ versículo del día: reacciones */
+
+const localDay = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+/** «Amén» (uno por persona, se puede quitar) y veces compartido del versículo de hoy. */
+export const dailyVerseService = {
+  stats: () =>
+    friendly(async () => {
+      const day = localDay();
+      const [d, mine] = await Promise.all([getDoc(ref("dailyVerse", day)), getDoc(ref(`dailyVerse/${day}/by`, me()))]);
+      return { likes: Number(d.data()?.likes ?? 0), shares: Number(d.data()?.shares ?? 0), liked: mine.exists() };
+    }),
+  toggleLike: (liked: boolean) =>
+    friendly(async () => {
+      const day = localDay();
+      const b = writeBatch(db);
+      if (liked) b.delete(ref(`dailyVerse/${day}/by`, me()));
+      else b.set(ref(`dailyVerse/${day}/by`, me()), { at: serverTimestamp() });
+      b.set(ref("dailyVerse", day), { likes: increment(liked ? -1 : 1) }, { merge: true });
+      await b.commit();
+    }),
+  shared: () => friendly(() => setDoc(ref("dailyVerse", localDay()), { shares: increment(1) }, { merge: true })),
 };
 
 export const feedbackService = {

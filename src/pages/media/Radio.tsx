@@ -1,11 +1,13 @@
 /**
  * HESERIA — Radio cristiana en vivo.
  *
- * Catálogo que administra la administración (Administración → Radios), solo con transmisiones
- * verificadas. Búsqueda, filtros por país e idioma, favoritos e historial en el teléfono.
+ * Primero las emisoras que publica la administración (Administración → Radios); después, el
+ * directorio abierto Radio Browser con emisoras cristianas en línea (verificadas a diario).
+ * Búsqueda (también por nombre en todo el directorio), filtros, favoritos e historial.
  */
 import { Globe, Heart, Radio as RadioIcon, Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { christianStations, searchStations } from "@/lib/radio-browser";
 import { EmptyState, ErrorState, ListSkeleton } from "@/components/states";
 import { SimpleSelect } from "@/components/ui/controls";
 import { Input } from "@/components/ui/primitives";
@@ -22,9 +24,25 @@ const ALL = "Todos";
 export default function Radio() {
   usePageMeta("Radio cristiana", "Emisoras cristianas en vivo.");
   useScreen({ title: "Radio" });
-  const stations = useAsync(() => radioService.list(), []);
-  const radio = useRadio();
   const [q, setQ] = useState("");
+  const stations = useAsync(async () => {
+    const [mine, directory] = await Promise.allSettled([radioService.list(), christianStations()]);
+    if (mine.status === "rejected" && directory.status === "rejected") throw directory.reason;
+    const a = mine.status === "fulfilled" ? mine.value : [];
+    const urls = new Set(a.map((x) => x.streamUrl));
+    return [...a, ...(directory.status === "fulfilled" ? directory.value.filter((x) => !urls.has(x.streamUrl)) : [])];
+  }, []);
+  // Buscar por nombre en todo el directorio (p. ej. una emisora que no está en la lista).
+  const [found, setFound] = useState<RadioStation[]>([]);
+  useEffect(() => {
+    const needle = q.trim();
+    if (needle.length < 3) return setFound([]);
+    const t = window.setTimeout(() => {
+      void searchStations(needle).then(setFound, () => setFound([]));
+    }, 500);
+    return () => window.clearTimeout(t);
+  }, [q]);
+  const radio = useRadio();
   const [country, setCountry] = useState(ALL);
   const [language, setLanguage] = useState(ALL);
   const [onlyFav, setOnlyFav] = useState(false);
@@ -49,6 +67,50 @@ export default function Radio() {
     .filter((s): s is RadioStation => Boolean(s))
     .slice(0, 5);
 
+
+  function row(s: RadioStation) {
+    const live = radio.station?.id === s.id && radio.status !== "detenida";
+    return (
+      <li key={s.id} className={cn("flex items-center gap-3 rounded-2xl border p-3", live ? "border-primary bg-primary/5" : "border-border")}>
+        <button type="button" onClick={() => playRadio(s)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+          {s.logo ? (
+            <img
+              src={s.logo}
+              alt=""
+              className="size-12 shrink-0 rounded-xl bg-primary/15 object-cover"
+              loading="lazy"
+              onError={(e) => { e.currentTarget.style.visibility = "hidden"; }}
+            />
+          ) : (
+            <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary"><RadioIcon className="size-5" /></span>
+          )}
+          <span className="min-w-0">
+            <span className="block truncate font-medium">{s.name}</span>
+            <span className="block truncate text-xs text-muted-foreground">
+              {[s.region, s.country].filter(Boolean).join(", ")}{s.categories.length ? ` · ${s.categories.join(", ")}` : ""}
+            </span>
+          </span>
+        </button>
+        {s.site && (
+          <a href={s.site} target="_blank" rel="noreferrer" aria-label={`Sitio oficial de ${s.name}`} className="tap-target grid place-items-center rounded-full text-muted-foreground">
+            <Globe className="size-4" />
+          </a>
+        )}
+        <button
+          type="button"
+          onClick={() => toggleRadioFavorite(s.id)}
+          aria-pressed={fav.includes(s.id)}
+          aria-label={fav.includes(s.id) ? `Quitar ${s.name} de favoritas` : `Agregar ${s.name} a favoritas`}
+          className="tap-target grid place-items-center rounded-full text-muted-foreground"
+        >
+          <Heart className={cn("size-4", fav.includes(s.id) && "fill-rose-400 text-rose-400")} />
+        </button>
+      </li>
+    );
+  }
+
+  const extra = found.filter((f) => !shown.some((x) => x.streamUrl === f.streamUrl));
+
   return (
     <div className="space-y-4">
       <RadioNowPlaying />
@@ -60,8 +122,8 @@ export default function Radio() {
       ) : !stations.data?.length ? (
         <EmptyState
           icon={RadioIcon}
-          title="Pronto habrá emisoras aquí"
-          description="Estamos verificando emisoras cristianas y sus permisos de transmisión antes de publicarlas."
+          title="Sin emisoras disponibles"
+          description="No pudimos cargar el directorio de radios. Revisa tu conexión e inténtalo de nuevo."
         />
       ) : (
         <>
@@ -95,48 +157,22 @@ export default function Radio() {
             </section>
           )}
 
-          {shown.length === 0 ? (
+          {shown.length === 0 && extra.length === 0 ? (
             <p className="text-sm text-muted-foreground">Ninguna emisora coincide.</p>
-          ) : (
+          ) : shown.length === 0 ? null : (
             <ul className="space-y-2">
-              {shown.map((s) => {
-                const live = radio.station?.id === s.id && radio.status !== "detenida";
-                return (
-                  <li key={s.id} className={cn("flex items-center gap-3 rounded-2xl border p-3", live ? "border-primary bg-primary/5" : "border-border")}>
-                    <button type="button" onClick={() => playRadio(s)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
-                      {s.logo ? (
-                        <img src={s.logo} alt="" className="size-12 shrink-0 rounded-xl object-cover" loading="lazy" />
-                      ) : (
-                        <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary"><RadioIcon className="size-5" /></span>
-                      )}
-                      <span className="min-w-0">
-                        <span className="block truncate font-medium">{s.name}</span>
-                        <span className="block truncate text-xs text-muted-foreground">
-                          {[s.region, s.country].filter(Boolean).join(", ")}{s.categories.length ? ` · ${s.categories.join(", ")}` : ""}
-                        </span>
-                      </span>
-                    </button>
-                    {s.site && (
-                      <a href={s.site} target="_blank" rel="noreferrer" aria-label={`Sitio oficial de ${s.name}`} className="tap-target grid place-items-center rounded-full text-muted-foreground">
-                        <Globe className="size-4" />
-                      </a>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => toggleRadioFavorite(s.id)}
-                      aria-pressed={fav.includes(s.id)}
-                      aria-label={fav.includes(s.id) ? `Quitar ${s.name} de favoritas` : `Agregar ${s.name} a favoritas`}
-                      className="tap-target grid place-items-center rounded-full text-muted-foreground"
-                    >
-                      <Heart className={cn("size-4", fav.includes(s.id) && "fill-rose-400 text-rose-400")} />
-                    </button>
-                  </li>
-                );
-              })}
+              {shown.map(row)}
             </ul>
           )}
+          {extra.length > 0 && (
+            <section>
+              <h2 className="mb-2 text-section font-semibold">Más resultados en el directorio</h2>
+              <ul className="space-y-2">{extra.map(row)}</ul>
+            </section>
+          )}
           <p className="text-xs text-muted-foreground">
-            Las emisoras transmiten desde sus propios servidores; Heseria no aloja su audio. La fuente puede incluir
+            Las emisoras transmiten desde sus propios servidores; Heseria no aloja su audio. Directorio:
+            Radio Browser (radio-browser.info). La fuente puede incluir
             sus propios anuncios.
           </p>
         </>

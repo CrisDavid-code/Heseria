@@ -105,10 +105,25 @@ async function openMedia(kind: "audio" | "video"): Promise<MediaStream> {
     audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
     video:
       kind === "video"
-        ? { facingMode: "user", width: { ideal: 960 }, height: { ideal: 540 } }
+        ? { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 1280 } }
         : false,
   };
-  return navigator.mediaDevices.getUserMedia(constraints);
+  const stream = await navigator.mediaDevices.getUserMedia(constraints);
+  for (const t of stream.getVideoTracks()) void widest(t);
+  return stream;
+}
+
+/**
+ * Sin recorte: sin forzar formato horizontal (el teléfono recortaba el sensor y se veía muy
+ * cerca) y, si la cámara lo permite, con el zoom más abierto.
+ */
+async function widest(track: MediaStreamTrack) {
+  try {
+    const caps = track.getCapabilities?.() as MediaTrackCapabilities & { zoom?: { min: number } };
+    if (caps?.zoom) await track.applyConstraints({ advanced: [{ zoom: caps.zoom.min } as MediaTrackConstraintSet] });
+  } catch {
+    /* la cámara no permite ajustar el zoom */
+  }
 }
 
 function createConnection(): RTCPeerConnection {
@@ -281,6 +296,7 @@ export async function flipCamera() {
       audio: false,
     });
     const track = fresh.getVideoTracks()[0];
+    void widest(track);
     const sender = peerConnection.getSenders().find((s) => s.track?.kind === "video");
     await sender?.replaceTrack(track);
     current?.stop();

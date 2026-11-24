@@ -123,7 +123,7 @@ export function VideoDetail() {
             toast.success(saved ? "Quitado de guardados" : "Guardado");
           }}
         >
-          <Heart className={saved ? "size-3.5 fill-current text-primary" : "size-3.5"} />
+          <Heart className={saved ? "size-3.5 fill-rose-500 text-rose-500" : "size-3.5"} />
           {saved ? "Guardado" : "Guardar"}
         </Button>
         <Button

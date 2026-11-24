@@ -297,6 +297,21 @@ await allowed("Ana lo da de baja", () => deleteDoc(doc(ana.db, "pushTokens", "to
   await denied("Ana no publica libros", () => setDoc(doc(ana.db, "books", "b2"), book));
   await denied("ni sin licencia indicada", () => setDoc(doc(owner.db, "books", "b3"), { ...book, license: "" }));
 }
+{
+  // Versículo del día: un «amén» por persona y contador de compartidos.
+  await allowed("Ana dice amén al versículo de hoy", async () => {
+    const b = writeBatch(ana.db);
+    b.set(doc(ana.db, "dailyVerse/2026-11-24/by", ana.uid), { at: serverTimestamp() });
+    b.set(doc(ana.db, "dailyVerse", "2026-11-24"), { likes: increment(1) }, { merge: true });
+    return b.commit();
+  });
+  await allowed("Beto también, y lo comparte", async () => {
+    await setDoc(doc(beto.db, "dailyVerse", "2026-11-24"), { likes: increment(1) }, { merge: true });
+    await setDoc(doc(beto.db, "dailyVerse", "2026-11-24"), { shares: increment(1) }, { merge: true });
+  });
+  await denied("nadie suma diez de golpe", () => setDoc(doc(ana.db, "dailyVerse", "2026-11-24"), { likes: increment(10) }, { merge: true }));
+  await denied("ni marca el amén de otra persona", () => setDoc(doc(ana.db, "dailyVerse/2026-11-24/by", beto.uid), { at: serverTimestamp() }));
+}
 await denied("un pastor no abre una colecta", () => setDoc(doc(beto.db, "foundationCases", "mi-colecta"), { title: "Ayuda para mí", goal: 1000 }));
 await denied("nadie cambia a dónde llega el dinero", () => setDoc(doc(beto.db, "settings", "payments"), { methods: [{ type: "paypal", handle: "estafador" }] }));
 await allowed("la Fundación configura sus métodos", () => setDoc(doc(owner.db, "settings", "payments"), { methods: [] }));

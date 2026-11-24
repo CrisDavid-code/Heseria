@@ -142,7 +142,7 @@ export default function Notifications() {
       )}
 
       <Link
-        to="/bible"
+        to="/settings?abrir=notificaciones"
         className="flex items-center gap-3 rounded-xl border border-border p-3.5 text-sm transition-colors active:bg-secondary"
       >
         <BookOpen className="size-4 shrink-0 text-primary" />

@@ -9,6 +9,7 @@ import { useAsync } from "@/hooks/useAsync";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { bibleService, readingStateService } from "@/services";
 import { parseReference } from "@/lib/reference";
+import { fold } from "@/lib/countries";
 import { DailyVerseCard } from "@/components/bible/DailyVerseCard";
 import { preferencesStore, usePreferences } from "@/store";
 import { useScreen } from "@/store/screen";
@@ -58,9 +59,10 @@ export default function BibleIndex() {
   const filtered = useMemo(() => {
     const list = books.data ?? [];
     if (!query.trim() || jump) return list;
-    const q = query.toLowerCase();
-    return list.filter((b) => b.name.toLowerCase().includes(q));
-  }, [books.data, query]);
+    // Sin tildes ni mayúsculas, por nombre o abreviatura: «apoc», «genesis», «1 cor».
+    const q = fold(query).replace(/\s+/g, " ");
+    return list.filter((b) => fold(b.name).includes(q) || fold(b.name).replace(/\s/g, "").startsWith(q.replace(/\s/g, "")));
+  }, [books.data, query, jump]);
 
   const at = filtered.filter((b) => b.testament === "AT");
   const nt = filtered.filter((b) => b.testament === "NT");
@@ -115,7 +117,9 @@ export default function BibleIndex() {
           aria-label="Buscar libro o referencia de la Biblia"
           className="h-11 rounded-full pl-10"
           onKeyDown={(e) => {
-            if (e.key === "Enter" && jump) navigate(`/bible/${jump.book.id}/${jump.chapter}`);
+            if (e.key !== "Enter") return;
+            if (jump) navigate(`/bible/${jump.book.id}/${jump.chapter}`);
+            else if (filtered.length === 1) setChapterFor(filtered[0]);
           }}
         />
       </div>
@@ -131,6 +135,16 @@ export default function BibleIndex() {
         </button>
       )}
 
+      {query.trim() && !jump ? (
+        filtered.length ? (
+          <section aria-label="Libros encontrados">
+            <p className="mb-2 text-xs text-muted-foreground">Libros que coinciden con «{query.trim()}»</p>
+            <BookGrid books={filtered} onPick={setChapterFor} />
+          </section>
+        ) : (
+          <p className="text-sm text-muted-foreground">No encontramos un libro con ese nombre. Prueba «Juan 3:16» o «Apocalipsis».</p>
+        )
+      ) : (
       <Tabs defaultValue="at">
         <TabsList>
           <TabsTrigger value="at">Antiguo Testamento</TabsTrigger>
@@ -143,6 +157,7 @@ export default function BibleIndex() {
           <BookGrid books={nt} onPick={setChapterFor} />
         </TabsContent>
       </Tabs>
+      )}
 
       {/* Chapter picker */}
       <BottomSheet open={Boolean(chapterFor)} onOpenChange={(v) => !v && setChapterFor(null)}>
