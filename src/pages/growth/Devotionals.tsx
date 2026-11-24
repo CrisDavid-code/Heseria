@@ -1,6 +1,8 @@
 import { CheckCircle2, Share2 } from "lucide-react";
+import { SpeechBar } from "@/components/bible/SpeechBar";
+import { useSpeech } from "@/hooks/useSpeech";
 import { ReadingMusic } from "@/components/bible/ReadingMusic";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { DevotionalCard } from "@/components/cards";
@@ -92,6 +94,12 @@ export function DevotionalDetail() {
   const devotional = useAsync(() => devotionalService.get(id), [id]);
   const library = useLibrary();
   const [done, setDone] = useState(false);
+  // En voz alta: título, versículo, cada párrafo de la reflexión y la oración.
+  const parts = useMemo(() => {
+    const x = devotional.data;
+    return x ? [x.title, `${x.verse.text}. ${x.verse.ref}`, ...x.reflection, `Oración. ${x.prayer}`] : [];
+  }, [devotional.data]);
+  const speech = useSpeech(parts);
 
   usePageMeta(devotional.data?.title ?? "Devocional", devotional.data?.verse.text);
   useScreen({ title: devotional.data?.title ?? "Devocional", back: true, hideSections: true }, [
@@ -107,6 +115,7 @@ export function DevotionalDetail() {
   return (
     <article className="space-y-6" data-selectable>
       <ReadingMusic />
+      <SpeechBar speech={speech} label="Escuchar devocional" />
       <GenerativeCover
         seed={d.id}
         gradient={d.color}

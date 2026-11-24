@@ -1,7 +1,7 @@
 import {
   BookMarked, BookOpen, CalendarDays, Church, Clapperboard, Compass, Download, GraduationCap,
   HandHeart, Heart, HeartHandshake, History, Home, LayoutDashboard, Library, type LucideIcon, MessageSquare, Mic2,
-  Music, Settings, Sparkles, Tv, User, Users, Video, Bell,
+  Music, Radio, Settings, Sparkles, Tv, User, Users, Video, Bell,
 } from "lucide-react";
 import { isSuperAdmin, portalsFor } from "@/lib/permissions";
 import type { TKey } from "@/i18n/locales";
@@ -51,12 +51,13 @@ export const TABS: TabDef[] = [
     href: "/explore",
     icon: Compass,
     match: [
-      "/explore", "/search", "/music", "/podcasts", "/sermons", "/videos", "/academy", "/courses",
+      "/explore", "/search", "/music", "/radio", "/podcasts", "/sermons", "/videos", "/academy", "/courses",
     ],
     // Cada opción vive en una sola pestaña: iglesias, eventos y ministerios están en Comunidad.
     sections: [
       { label: "Descubrir", href: "/explore" },
       { label: "Música", href: "/music" },
+      { label: "Radio", href: "/radio" },
       { label: "Podcasts", href: "/podcasts" },
       { label: "Sermones", href: "/sermons" },
       { label: "Videos", href: "/videos" },
@@ -69,11 +70,13 @@ export const TABS: TabDef[] = [
     labelKey: "nav.bible",
     href: "/bible",
     icon: BookOpen,
-    match: ["/bible", "/devotionals", "/plans", "/prayer"],
+    match: ["/bible", "/devotionals", "/plans", "/prayer", "/diario", "/memorizar"],
     sections: [
       { label: "Biblia", href: "/bible" },
       { label: "Devocionales", href: "/devotionals" },
       { label: "Planes", href: "/plans" },
+      { label: "Memorizar", href: "/memorizar" },
+      { label: "Mi diario", href: "/diario" },
       { label: "Oración", href: "/prayer" },
     ],
   },
@@ -183,6 +186,7 @@ export function portalLinks(role: Role): SheetLink[] {
 export const EXPLORE_CATEGORIES: { label: string; href: string; icon: LucideIcon; gradient: string }[] = [
   { label: "Biblia", href: "/bible", icon: BookOpen, gradient: "from-cyan-500/70 to-blue-700/70" },
   { label: "Música", href: "/music", icon: Music, gradient: "from-fuchsia-400/70 to-indigo-800/70" },
+  { label: "Radio en vivo", href: "/radio", icon: Radio, gradient: "from-rose-400/70 to-purple-800/70" },
   { label: "Podcasts", href: "/podcasts", icon: Mic2, gradient: "from-amber-400/70 to-orange-700/70" },
   { label: "Sermones", href: "/sermons", icon: Clapperboard, gradient: "from-teal-400/70 to-emerald-700/70" },
   { label: "Videos", href: "/videos", icon: Video, gradient: "from-sky-400/70 to-indigo-800/70" },

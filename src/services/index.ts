@@ -3348,6 +3348,201 @@ export async function disableWebPush(): Promise<void> {
   if (token) await deleteDoc(ref("pushTokens", token)).catch(() => undefined);
 }
 
+/* ===================================================== diario y memorización */
+
+/**
+ * Diario espiritual y diario de oración: privados (users/{uid}/journal, reglas solo-dueño;
+ * ni la administración los lee). Nunca salen a analítica, logs ni a proveedores externos.
+ */
+export interface JournalEntry {
+  id: ID;
+  kind: "espiritual" | "oracion";
+  title: string;
+  body: string;
+  refs: string[];
+  tags: string[];
+  favorite: boolean;
+  answered: boolean;
+  answeredAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+function toJournal(d: DocumentSnapshot<DocumentData>): JournalEntry | null {
+  const x = d.data();
+  if (!x || (x.kind !== "espiritual" && x.kind !== "oracion")) return null;
+  return {
+    id: d.id, kind: x.kind, title: x.title ?? "", body: x.body ?? "", refs: x.refs ?? [], tags: x.tags ?? [],
+    favorite: Boolean(x.favorite), answered: Boolean(x.answered), answeredAt: x.answeredAt ? iso(x.answeredAt) : null,
+    createdAt: iso(x.createdAt), updatedAt: iso(x.updatedAt ?? x.createdAt),
+  };
+}
+
+export const journalService = {
+  list: (kind: JournalEntry["kind"]) =>
+    friendly(async () =>
+      (await list(query(col(`users/${me()}/journal`), where("kind", "==", kind)), toJournal))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    ),
+  save: (entry: Pick<JournalEntry, "kind" | "title" | "body" | "refs" | "tags"> & { id?: ID; favorite?: boolean }) =>
+    friendly(async () => {
+      const base = col(`users/${me()}/journal`);
+      const data = {
+        kind: entry.kind, title: entry.title.trim().slice(0, 200), body: entry.body.trim().slice(0, 10000),
+        refs: entry.refs.slice(0, 20), tags: entry.tags.map((t) => t.trim()).filter(Boolean).slice(0, 10),
+        favorite: Boolean(entry.favorite), updatedAt: serverTimestamp(),
+      };
+      if (entry.id) await updateDoc(ref(`users/${me()}/journal`, entry.id), data);
+      else await addDoc(base, { ...data, answered: false, createdAt: serverTimestamp() });
+    }),
+  setFavorite: (id: ID, favorite: boolean) =>
+    friendly(() => updateDoc(ref(`users/${me()}/journal`, id), { favorite, updatedAt: serverTimestamp() })),
+  setAnswered: (id: ID, answered: boolean) =>
+    friendly(() =>
+      updateDoc(ref(`users/${me()}/journal`, id), {
+        answered, answeredAt: answered ? serverTimestamp() : null, updatedAt: serverTimestamp(),
+      }),
+    ),
+  remove: (id: ID) => friendly(() => deleteDoc(ref(`users/${me()}/journal`, id))),
+};
+
+/** Versículos para memorizar con repaso espaciado (niveles 0–5: 1, 2, 4, 7, 15 y 30 días). */
+export interface MemoryVerse {
+  id: ID;
+  ref: string;
+  book: string;
+  chapter: number;
+  verse: number;
+  version: string;
+  text: string;
+  level: number;
+  nextReview: string;
+  reviews: number;
+}
+const REVIEW_DAYS = [1, 2, 4, 7, 15, 30];
+
+function toMemory(d: DocumentSnapshot<DocumentData>): MemoryVerse | null {
+  const x = d.data();
+  if (!x?.text) return null;
+  return {
+    id: d.id, ref: x.ref, book: x.book, chapter: x.chapter, verse: x.verse, version: x.version ?? "",
+    text: x.text, level: x.level ?? 0, nextReview: iso(x.nextReview), reviews: x.reviews ?? 0,
+  };
+}
+
+export const memoryService = {
+  list: () =>
+    friendly(async () =>
+      (await list(col(`users/${me()}/memory`), toMemory)).sort((a, b) => a.nextReview.localeCompare(b.nextReview)),
+    ),
+  add: (v: { ref: string; book: string; chapter: number; verse: number; version: string; text: string }) =>
+    friendly(() =>
+      setDoc(ref(`users/${me()}/memory`, `${v.book}.${v.chapter}.${v.verse}`), {
+        ...v, text: v.text.slice(0, 2000), level: 0, reviews: 0,
+        nextReview: Timestamp.now(), createdAt: serverTimestamp(),
+      }),
+    ),
+  /** Lo recordó: sube de nivel y se aleja el repaso. No lo recordó: vuelve a empezar mañana. */
+  review: (m: MemoryVerse, remembered: boolean) =>
+    friendly(() => {
+      const level = remembered ? Math.min(5, m.level + 1) : 0;
+      const next = new Date(Date.now() + REVIEW_DAYS[level] * 864e5);
+      return updateDoc(ref(`users/${me()}/memory`, m.id), {
+        level, reviews: m.reviews + 1, nextReview: Timestamp.fromDate(next),
+      });
+    }),
+  remove: (id: ID) => friendly(() => deleteDoc(ref(`users/${me()}/memory`, id))),
+};
+
+/** Dónde se quedó leyendo la Biblia: en el teléfono al instante y en la nube para otros dispositivos. */
+export interface ReadingSpot { book: string; chapter: number; verse: number; version: string }
+const SPOT_KEY = "heseria.bibleSpot";
+export const readingStateService = {
+  local(): ReadingSpot | null {
+    try {
+      return JSON.parse(localStorage.getItem(SPOT_KEY) ?? "null");
+    } catch {
+      return null;
+    }
+  },
+  async get(): Promise<ReadingSpot | null> {
+    const uid = myIdOrNull();
+    if (uid) {
+      const d = (await getDoc(ref(`users/${uid}/readingState`, "bible")).catch(() => null))?.data();
+      if (d?.book) return { book: d.book, chapter: d.chapter, verse: d.verse ?? 1, version: d.version ?? "" };
+    }
+    return readingStateService.local();
+  },
+  save(spot: ReadingSpot) {
+    try {
+      localStorage.setItem(SPOT_KEY, JSON.stringify(spot));
+    } catch {
+      /* sin almacenamiento */
+    }
+    const uid = myIdOrNull();
+    if (uid) void setDoc(ref(`users/${uid}/readingState`, "bible"), { ...spot, updatedAt: serverTimestamp() }).catch(() => undefined);
+  },
+};
+
+/* ================================================================= radio */
+
+/**
+ * Radio cristiana en vivo. Catálogo en `radios`, que solo la administración edita y solo con
+ * URLs de transmisión que una persona verificó (fuente oficial y permiso de reproducción).
+ * HESERIA no aloja ni retransmite el audio: lo reproduce desde la fuente original.
+ */
+export interface RadioStation {
+  id: ID;
+  name: string;
+  description: string;
+  logo: string;
+  country: string;
+  region: string;
+  language: string;
+  categories: string[];
+  site: string;
+  source: string;
+  streamUrl: string;
+  status: "activa" | "pausada" | "retirada";
+  verifiedAt: string | null;
+  rights: string;
+}
+
+function toRadio(d: DocumentSnapshot<DocumentData>): RadioStation | null {
+  const x = d.data();
+  if (!x?.streamUrl || !x.name) return null;
+  return {
+    id: d.id, name: x.name, description: x.description ?? "", logo: x.logo ?? "", country: x.country ?? "",
+    region: x.region ?? "", language: x.language ?? "Español", categories: x.categories ?? [], site: x.site ?? "",
+    source: x.source ?? "", streamUrl: x.streamUrl, status: x.status ?? "activa",
+    verifiedAt: x.verifiedAt ? iso(x.verifiedAt) : null, rights: x.rights ?? "",
+  };
+}
+
+export const radioService = {
+  /** Solo las activas, para el público. */
+  list: () =>
+    friendly(async () =>
+      (await list(query(col("radios"), where("status", "==", "activa")), toRadio)).sort((a, b) => a.name.localeCompare(b.name)),
+    ),
+  /** Todas, para la administración. */
+  all: () => friendly(async () => (await list(col("radios"), toRadio)).sort((a, b) => a.name.localeCompare(b.name))),
+  save: (r: Omit<RadioStation, "id" | "verifiedAt"> & { id?: ID; verified: boolean }) =>
+    friendly(async () => {
+      const { id, verified, ...rest } = r;
+      const dup = (await list(query(col("radios"), where("streamUrl", "==", rest.streamUrl.trim())), toRadio)).find((x) => x.id !== id);
+      if (dup) throw new AppError(`Esa transmisión ya está en el catálogo («${dup.name}»).`);
+      const data = {
+        ...rest, name: rest.name.trim(), streamUrl: rest.streamUrl.trim(),
+        categories: rest.categories.filter(Boolean).slice(0, 8),
+        ...(verified ? { verifiedAt: serverTimestamp() } : {}), updatedAt: serverTimestamp(),
+      };
+      if (id) await setDoc(ref("radios", id), data, { merge: true });
+      else await addDoc(col("radios"), data);
+    }),
+  remove: (id: ID) => friendly(() => deleteDoc(ref("radios", id))),
+};
+
 export const feedbackService = {
   list: () =>
     friendly(() =>
