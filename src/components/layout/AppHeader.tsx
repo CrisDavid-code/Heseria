@@ -93,7 +93,7 @@ function AccountSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v:
 /* ------------------------------------------------------------- top bar */
 
 export function AppHeader() {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const t = useT();
   const navigate = useNavigate();
   const screen = useScreenConfig();
@@ -102,7 +102,6 @@ export function AppHeader() {
   const [accountOpen, setAccountOpen] = useState(false);
 
   const tab = tabForPath(pathname, tabsFor(user));
-  const isTabRoot = tab.sections.some((s) => s.href === pathname) || pathname === tab.href;
   const showSections = !screen.hideSections && !screen.back && tab.sections.length > 1;
 
   if (screen.immersive) return null;
@@ -208,9 +207,14 @@ export function AppHeader() {
         {showSections && (
           <div className="flex flex-wrap gap-1.5 px-3 pb-2.5">
             {tab.sections.map((s) => {
-              const active = isTabRoot
-                ? s.href === pathname || s.href.startsWith(`${pathname}?`)
-                : pathname.startsWith(s.href.split("?")[0]) && s.href.split("?")[0] !== "/home";
+              const here = pathname + search;
+              const samePath = tab.sections.filter((x) => x.href.split("?")[0] === pathname);
+              // Exacta con su ?tab=; sin query, la primera de esa ruta; si no, por prefijo de ruta.
+              const active = tab.sections.some((x) => x.href === here)
+                ? s.href === here
+                : samePath.length
+                  ? s === samePath[0]
+                  : pathname.startsWith(s.href.split("?")[0]) && s.href.split("?")[0] !== "/home";
               return (
                 <Link
                   key={s.href}

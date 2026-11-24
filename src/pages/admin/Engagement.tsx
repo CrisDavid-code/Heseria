@@ -31,7 +31,6 @@ const DESTINATIONS = [
   { value: "/explore", label: "Explorar" },
   { value: "/bible", label: "Biblia" },
   { value: "/devotionals", label: "Devocional de hoy" },
-  { value: "/music", label: "Música" },
   { value: "/events", label: "Eventos" },
   { value: "/foundation", label: "Fundación" },
   { value: "/prayer", label: "Oración" },

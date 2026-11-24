@@ -608,7 +608,13 @@ const DAILY_VERSE_DAYS = 60;
  * (sin servidor ni conexión): uno por día para los próximos 60 días, y se
  * renueva cada vez que se abre la app, así nunca se acaba.
  */
-export async function scheduleDailyVerse(enabled: boolean, hour = 7): Promise<boolean> {
+/** Hora del aviso diario («HH:MM»), elegida en Configuración → Recordatorios. */
+export function dailyVerseTime(): string {
+  try { return localStorage.getItem("heseria.dailyTime") || "07:00"; } catch { return "07:00"; }
+}
+
+export async function scheduleDailyVerse(enabled: boolean, time = dailyVerseTime()): Promise<boolean> {
+  const [hour, minute] = time.split(":").map(Number);
   if (!(await prepareLocal())) return false;
   try {
     const { LocalNotifications } = await import("@capacitor/local-notifications");
@@ -619,7 +625,7 @@ export async function scheduleDailyVerse(enabled: boolean, hour = 7): Promise<bo
     const now = new Date();
     const notifications = [];
     for (let i = 0; i < DAILY_VERSE_DAYS; i++) {
-      const at = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i, hour, 0);
+      const at = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i, hour || 0, minute || 0);
       if (at <= now) continue;
       const v = await verseOfTheDay(at);
       notifications.push({

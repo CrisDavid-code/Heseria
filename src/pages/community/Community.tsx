@@ -119,10 +119,10 @@ function PostCard({ post, onRemoved }: { post: Post; onRemoved?: () => void }) {
           }}
           className={cn(
             "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs transition-colors",
-            liked ? "text-primary" : "text-muted-foreground active:bg-secondary",
+            liked ? "text-rose-500" : "text-muted-foreground active:bg-secondary",
           )}
         >
-          <Heart className={cn("size-4", liked && "fill-current")} /> {formatCompact(likes)}
+          <Heart className={cn("size-4", liked && "fill-rose-500 text-rose-500")} /> {formatCompact(likes)}
         </button>
         <button
           type="button"

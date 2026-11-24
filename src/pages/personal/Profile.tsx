@@ -215,7 +215,6 @@ export default function Profile() {
         <TabsList>
           <TabsTrigger value="actividad">Actividad</TabsTrigger>
           <TabsTrigger value="cursos">Cursos</TabsTrigger>
-          <TabsTrigger value="playlists">Playlists</TabsTrigger>
         </TabsList>
 
         <TabsContent value="actividad">
@@ -254,29 +253,6 @@ export default function Profile() {
           )}
         </TabsContent>
 
-        <TabsContent value="playlists">
-          {myPlaylists.length ? (
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-              {myPlaylists.map((p) => (
-                <MediaCard
-                  key={p.id}
-                  to={`/music/playlists/${p.id}`}
-                  seed={p.id}
-                  gradient={p.color}
-                  title={p.title}
-                  subtitle={`${p.trackIds.length} canciones`}
-                />
-              ))}
-            </div>
-          ) : (
-            <EmptyState
-              title="Sin playlists públicas"
-              description="Las playlists que cree y comparta se mostrarán aquí."
-              actionLabel="Explorar música"
-              actionHref="/music"
-            />
-          )}
-        </TabsContent>
       </Tabs>
     </div>
   );

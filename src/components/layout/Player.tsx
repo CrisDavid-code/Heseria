@@ -1,11 +1,14 @@
 import {
-  ChevronDown, Heart, ListPlus, ListMusic, Moon, Pause, Play, Repeat, Repeat1, Share2, Shuffle,
+  ChevronDown, Heart, ListMusic, Moon, NotebookPen, Pause, Play, Repeat, Repeat1, Share2, Shuffle,
   SkipBack, SkipForward, Volume1, Volume2, VolumeX,
 } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { GenerativeCover } from "@/components/media/covers";
 import { Slider } from "@/components/ui/controls";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/primitives";
+import { journalService } from "@/services";
 import { BottomSheet, BottomSheetContent } from "@/components/ui/overlays";
 import { haptic, share, shareUrl } from "@/native";
 import { playerStore, playerTick, savePosition, savedPosition, useLibrary, usePlayer } from "@/store";
@@ -47,6 +50,22 @@ function AudioEngine() {
     const el = ref.current;
     if (el) el.volume = player.volume;
   }, [player.volume]);
+
+  // Pantalla de bloqueo y auriculares: reproducir, pausar, anterior, siguiente, ±15 s.
+  useEffect(() => {
+    if (!("mediaSession" in navigator) || !player.track) return;
+    const ms = navigator.mediaSession;
+    ms.metadata = new MediaMetadata({ title: player.track.title, artist: player.track.subtitle ?? "Heseria", album: "Heseria" });
+    const h: [MediaSessionAction, MediaSessionActionHandler][] = [
+      ["play", () => playerStore.set({ playing: true })],
+      ["pause", () => playerStore.set({ playing: false })],
+      ["nexttrack", () => player.next()],
+      ["previoustrack", () => player.prev()],
+      ["seekforward", () => player.seek(playerStore.get().positionSec + 15)],
+      ["seekbackward", () => player.seek(playerStore.get().positionSec - 15)],
+    ];
+    for (const [a, fn] of h) { try { ms.setActionHandler(a, fn); } catch { /* acción no disponible */ } }
+  }, [player.track?.id]);
 
   useEffect(() => {
     const el = ref.current;
@@ -187,14 +206,34 @@ export function MiniPlayer() {
 function FullPlayer() {
   const player = usePlayer();
   const library = useLibrary();
-  /** Guarda la pista en Mi biblioteca → Música (real, en la cuenta). */
-  const saveToLibrary = () => {
-    if (!player.track) return;
-    const was = library.isSaved("song", player.track.id);
-    library.toggle("song", player.track.id);
-    toast.success(was ? "Quitada de tu biblioteca" : "Guardada en tu biblioteca");
-  };
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [queueOpen, setQueueOpen] = useState(false);
+  const [note, setNote] = useState("");
+  const [noteAt, setNoteAt] = useState(0);
+  const [busy, setBusy] = useState(false);
+  void library;
   const track = player.track;
+
+  async function saveNote() {
+    if (!track || !note.trim()) return;
+    setBusy(true);
+    try {
+      await journalService.save({
+        kind: "espiritual",
+        title: `${track.title} · ${formatDuration(noteAt)}`.slice(0, 200),
+        body: note.trim(),
+        refs: [],
+        tags: ["podcast"],
+      });
+      toast.success("Nota guardada en Mi diario");
+      setNote("");
+      setNoteOpen(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo guardar la nota.");
+    } finally {
+      setBusy(false);
+    }
+  }
   if (!track) return null;
 
   const liked = player.liked.includes(track.id);
@@ -203,7 +242,7 @@ function FullPlayer() {
     const how = await share({
       title: track!.title,
       text: `Escucha “${track!.title}” en Heseria`,
-      url: shareUrl(`/music`),
+      url: shareUrl(`/podcasts`),
     });
     if (how === "clipboard") toast.success("Enlace copiado");
     else if (how === "failed") toast.error("No pudimos compartir");
@@ -232,11 +271,11 @@ function FullPlayer() {
             </p>
             <button
               type="button"
-              onClick={() => saveToLibrary()}
-              aria-label="Guardar en mi biblioteca"
+              onClick={() => { setNoteAt(player.positionSec); setNoteOpen(true); }}
+              aria-label="Agregar nota"
               className="tap-target grid place-items-center rounded-full text-muted-foreground active:bg-secondary"
             >
-              <ListPlus className="size-5" />
+              <NotebookPen className="size-5" />
             </button>
           </div>
 
@@ -266,7 +305,7 @@ function FullPlayer() {
                 liked ? "text-primary" : "text-muted-foreground",
               )}
             >
-              <Heart className={cn("size-6", liked && "fill-current")} />
+              <Heart className={cn("size-6", liked && "fill-rose-500 text-rose-500")} />
             </button>
           </div>
 
@@ -395,21 +434,48 @@ function FullPlayer() {
             </button>
             <button
               type="button"
-              onClick={() => toast.info(`${player.queue.length} pistas en la cola`)}
+              onClick={() => setQueueOpen(true)}
               className="flex flex-col items-center gap-1.5 text-muted-foreground"
             >
               <ListMusic className="size-5" />
-              <span className="text-[0.68rem]">Cola</span>
+              <span className="text-[0.68rem]">Episodios ({player.queue.length})</span>
             </button>
             <button
               type="button"
-              onClick={() => saveToLibrary()}
+              onClick={() => { setNoteAt(player.positionSec); setNoteOpen(true); }}
               className="flex flex-col items-center gap-1.5 text-muted-foreground"
             >
-              <ListPlus className="size-5" />
-              <span className="text-[0.68rem]">Guardar</span>
+              <NotebookPen className="size-5" />
+              <span className="text-[0.68rem]">Nota</span>
             </button>
           </div>
+
+          {/* Nota durante la reproducción: queda en Mi diario con el minuto. El audio sigue. */}
+          <BottomSheet open={noteOpen} onOpenChange={setNoteOpen}>
+            <BottomSheetContent title="Nota" description={`${track.title} · minuto ${formatDuration(noteAt)}`}>
+              <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="¿Qué te habló Dios en este mensaje?" className="min-h-28" autoFocus maxLength={10000} />
+              <Button full className="mt-3" loading={busy} disabled={!note.trim()} onClick={() => void saveNote()}>Guardar en Mi diario</Button>
+            </BottomSheetContent>
+          </BottomSheet>
+
+          {/* Lista de reproducción: tocar un episodio lo pone a sonar. */}
+          <BottomSheet open={queueOpen} onOpenChange={setQueueOpen}>
+            <BottomSheetContent title="Lista de reproducción">
+              <ol className="space-y-1">
+                {player.queue.map((t, i) => (
+                  <li key={t.id}>
+                    <button
+                      type="button"
+                      onClick={() => { playerStore.set({ index: i, positionSec: 0, playing: true }); setQueueOpen(false); }}
+                      className={cn("w-full rounded-xl px-3 py-2 text-left text-sm", i === player.index ? "bg-primary/12 font-medium text-primary" : "active:bg-secondary")}
+                    >
+                      <span className="mr-2 tabular-nums text-muted-foreground">{i + 1}.</span>{t.title}
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            </BottomSheetContent>
+          </BottomSheet>
         </div>
       </BottomSheetContent>
     </BottomSheet>

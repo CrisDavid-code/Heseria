@@ -4,7 +4,7 @@ import { HeseriaMark } from "@/components/layout/Brand";
 
 const PILLARS = [
   { icon: BookOpen, label: "Biblia, devocionales y planes", short: "Biblia" },
-  { icon: Music, label: "Música, sermones y podcasts", short: "Música" },
+  { icon: Music, label: "Sermones, podcasts y radio", short: "Escuchar" },
   { icon: GraduationCap, label: "Academia y formación ministerial", short: "Cursos" },
   { icon: Users, label: "Iglesias, grupos y comunidad", short: "Comunidad" },
   { icon: HandHeart, label: "Fundación e impacto social", short: "Ayuda social" },

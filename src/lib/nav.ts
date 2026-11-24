@@ -51,12 +51,11 @@ export const TABS: TabDef[] = [
     href: "/explore",
     icon: Compass,
     match: [
-      "/explore", "/search", "/music", "/radio", "/podcasts", "/sermons", "/videos", "/academy", "/courses",
+      "/explore", "/search", "/radio", "/podcasts", "/sermons", "/videos", "/academy", "/courses",
     ],
     // Cada opción vive en una sola pestaña: iglesias, eventos y ministerios están en Comunidad.
     sections: [
       { label: "Descubrir", href: "/explore" },
-      { label: "Música", href: "/music" },
       { label: "Radio", href: "/radio" },
       { label: "Podcasts", href: "/podcasts" },
       { label: "Sermones", href: "/sermons" },
@@ -108,7 +107,6 @@ export const TABS: TabDef[] = [
     sections: [
       { label: "Guardados", href: "/library?tab=guardados" },
       { label: "Lector", href: "/lector" },
-      { label: "Música", href: "/library?tab=musica" },
       { label: "Videos", href: "/library?tab=videos" },
       { label: "Cursos", href: "/library?tab=cursos" },
       { label: "Historial", href: "/library?tab=historial" },
@@ -170,7 +168,6 @@ export const ACCOUNT_LINKS: SheetLink[] = [
 const PORTAL_ICONS: Record<string, LucideIcon> = {
   "/church-admin": Church,
   "/teacher": GraduationCap,
-  "/artist": Music,
   "/creator": Video,
   "/admin": Settings,
   "/admin/moderation": Settings,
@@ -188,7 +185,6 @@ export function portalLinks(role: Role): SheetLink[] {
 /** Categories used by /explore and the search filters. */
 export const EXPLORE_CATEGORIES: { label: string; href: string; icon: LucideIcon; gradient: string }[] = [
   { label: "Biblia", href: "/bible", icon: BookOpen, gradient: "from-cyan-500/70 to-blue-700/70" },
-  { label: "Música", href: "/music", icon: Music, gradient: "from-fuchsia-400/70 to-indigo-800/70" },
   { label: "Radio en vivo", href: "/radio", icon: Radio, gradient: "from-rose-400/70 to-purple-800/70" },
   { label: "Podcasts", href: "/podcasts", icon: Mic2, gradient: "from-amber-400/70 to-orange-700/70" },
   { label: "Sermones", href: "/sermons", icon: Clapperboard, gradient: "from-teal-400/70 to-emerald-700/70" },

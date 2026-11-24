@@ -1,7 +1,8 @@
 import {
-  Mic, MicOff, Phone, PhoneOff, RefreshCw, Video, VideoOff, Volume2,
+  BookOpen, Maximize2, Mic, MicOff, Minimize2, Phone, PhoneOff, RefreshCw, Video, VideoOff,
 } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { CallReading, useCallCouple } from "@/components/couple/CallReading";
 import { GenerativeCover } from "@/components/media/covers";
 import { haptic } from "@/native";
 import {
@@ -21,6 +22,9 @@ export function CallOverlay() {
   const call = useCall();
   const localRef = useRef<HTMLVideoElement>(null);
   const remoteRef = useRef<HTMLVideoElement>(null);
+  const couple = useCallCouple(call.peer?.id);
+  const [reading, setReading] = useState(false);
+  const [fill, setFill] = useState(false);
 
   // Los elementos de video se registran para que el motor les enchufe la señal.
   useEffect(() => {
@@ -68,14 +72,15 @@ export function CallOverlay() {
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-background pt-safe">
-      <div className="relative flex-1 overflow-hidden">
+      <div className={cn("relative overflow-hidden", reading ? "h-[38%] shrink-0" : "flex-1")}>
         {/* Video del otro extremo, o su avatar mientras no llega imagen. */}
         <video
           ref={remoteRef}
           autoPlay
           playsInline
           className={cn(
-            "absolute inset-0 size-full bg-black object-cover",
+            "absolute inset-0 size-full bg-black",
+            fill && !reading ? "object-cover" : "object-contain",
             showRemoteVideo ? "opacity-100" : "opacity-0",
           )}
         />
@@ -111,6 +116,17 @@ export function CallOverlay() {
         )}
 
         {showRemoteVideo && (
+          <button
+            type="button"
+            onClick={() => setFill((v) => !v)}
+            aria-label={fill ? "Ver completo" : "Llenar pantalla"}
+            className="absolute right-3 top-3 z-10 grid size-9 place-items-center rounded-full bg-black/45 text-white"
+          >
+            {fill ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+          </button>
+        )}
+
+        {showRemoteVideo && !reading && (
           <div className="absolute inset-x-0 top-0 p-5 pt-8 text-center">
             <h1 className="font-display text-xl font-semibold text-white drop-shadow">{title}</h1>
             <p className="mt-1 text-sm tabular-nums text-white/80">{statusLabel}</p>
@@ -121,7 +137,8 @@ export function CallOverlay() {
         {kind === "video" && (
           <div
             className={cn(
-              "absolute bottom-4 right-4 w-28 overflow-hidden rounded-2xl border-2 border-white/25 bg-black transition-opacity",
+              reading ? "absolute bottom-2 right-2 w-16 overflow-hidden" : "absolute bottom-4 right-4 w-28 overflow-hidden",
+              "rounded-2xl border-2 border-white/25 bg-black transition-opacity",
               call.cameraOff ? "opacity-0" : "opacity-100",
             )}
           >
@@ -139,8 +156,15 @@ export function CallOverlay() {
         )}
       </div>
 
+      {/* Lectura compartida (solo en llamadas con la pareja). */}
+      {reading && couple && (
+        <div className="min-h-0 flex-1 bg-background">
+          <CallReading couple={couple} />
+        </div>
+      )}
+
       {/* Controles */}
-      <div className="shrink-0 bg-surface px-6 py-6 pb-[calc(1.5rem+var(--safe-bottom))]">
+      <div className={cn("shrink-0 bg-surface px-6", reading ? "py-3 pb-[calc(0.75rem+var(--safe-bottom))]" : "py-6 pb-[calc(1.5rem+var(--safe-bottom))]")}>
         {status === "entrante" ? (
           <div className="flex items-center justify-around">
             <button
@@ -162,7 +186,7 @@ export function CallOverlay() {
           </div>
         ) : (
           <>
-            <div className="mb-6 grid grid-cols-4 gap-3">
+            <div className={cn("grid gap-3", couple ? "grid-cols-4" : "grid-cols-3", reading ? "mb-3" : "mb-6")}>
               <ControlButton
                 icon={call.muted ? MicOff : Mic}
                 label={call.muted ? "Silenciado" : "Micrófono"}
@@ -182,7 +206,9 @@ export function CallOverlay() {
                 disabled={kind !== "video" || status !== "activa"}
                 onClick={() => void flipCamera()}
               />
-              <ControlButton icon={Volume2} label="Altavoz" active onClick={() => haptic("light")} />
+              {couple && (
+                <ControlButton icon={BookOpen} label="Leer juntos" active={reading} disabled={status === "finalizada"} onClick={() => setReading((v) => !v)} />
+              )}
             </div>
 
             <button

@@ -1,3 +1,4 @@
+import { PrayButton } from "@/components/social/PrayButton";
 import { Heart, Lock, Plus, Sparkles, Users } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -23,8 +24,6 @@ const CATEGORIES = [
 
 function PrayerCard({ request }: { request: PrayerRequest }) {
   const author = users.find((u) => u.id === request.authorId);
-  const [praying, setPraying] = useState(false);
-  const [count, setCount] = useState(request.prayingCount);
 
   return (
     <article className="surface-card p-4">
@@ -64,23 +63,9 @@ function PrayerCard({ request }: { request: PrayerRequest }) {
 
       <div className="mt-3.5 flex items-center justify-between gap-3">
         <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Users className="size-3.5" /> {count} personas orando
+          <Users className="size-3.5" /> Oran por esta petición
         </span>
-        <Button
-          size="sm"
-          variant={praying ? "secondary" : "subtle"}
-          disabled={praying}
-          onClick={async () => {
-            haptic("success");
-            setPraying(true);
-            const r = await prayerService.pray(request.id);
-            setCount(r.prayingCount);
-            toast.success("Gracias por orar. Se lo hicimos saber.");
-          }}
-        >
-          <Heart className={praying ? "size-3.5 fill-current" : "size-3.5"} />
-          {praying ? "Estás orando" : "Estoy orando"}
-        </Button>
+        <PrayButton id={request.id} count={request.prayingCount} />
       </div>
 
       <Badge variant="primary" className="mt-3">

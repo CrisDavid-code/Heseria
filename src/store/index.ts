@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 /**
  * HESERIA — Estados globales.
  *
@@ -304,16 +305,18 @@ export function usePlayer() {
     toggle() {
       playerStore.set({ playing: !playerStore.get().playing });
     },
+    /** Siguiente episodio de la lista (sin dar la vuelta al terminar la lista). */
     next() {
       const s = playerStore.get();
-      if (!s.queue.length) return;
-      playerStore.set({ index: (s.index + 1) % s.queue.length, positionSec: 0 });
+      if (s.index + 1 >= s.queue.length) return void toast.info("Es el último de la lista.");
+      playerStore.set({ index: s.index + 1, positionSec: 0, playing: true });
     },
+    /** Anterior; si ya avanzó más de 4 s, vuelve al inicio del actual (como un reproductor normal). */
     prev() {
       const s = playerStore.get();
       if (!s.queue.length) return;
-      if (s.positionSec > 4) return playerStore.set({ positionSec: 0 });
-      playerStore.set({ index: (s.index - 1 + s.queue.length) % s.queue.length, positionSec: 0 });
+      if (s.positionSec > 4 || s.index === 0) return playerStore.set({ positionSec: 0 });
+      playerStore.set({ index: s.index - 1, positionSec: 0, playing: true });
     },
     seek(sec: number) {
       playerStore.set({ positionSec: Math.max(0, sec) });

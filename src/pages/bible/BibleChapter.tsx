@@ -1,6 +1,6 @@
 import {
   BarChart3, Bookmark, Brain, ChevronLeft, ChevronRight, Columns2, Copy, Minus, NotebookPen, Plus,
-  Share2, Sun, Type, Volume2,
+  Share2, Sun, Type, Volume2, X,
 } from "lucide-react";
 import { SpeechBar } from "@/components/bible/SpeechBar";
 import { useSpeech } from "@/hooks/useSpeech";
@@ -49,11 +49,11 @@ export default function BibleChapter() {
   const versions = useAsync(() => bibleService.versions(), []);
   const version = versions.data?.find((v) => v.id === data.data?.version);
 
-  const [selected, setSelected] = useState<number | null>(null);
+  const [sel, setSel] = useState<number[]>([]);
   const [typeOpen, setTypeOpen] = useState(false);
-  const [noteFor, setNoteFor] = useState<number | null>(null);
+  const [noteFor, setNoteFor] = useState<number[] | null>(null);
   const [note, setNote] = useState("");
-  const [shareFor, setShareFor] = useState<number | null>(null);
+  const [shareFor, setShareFor] = useState<{ text: string; reference: string; link: string } | null>(null);
   const [compareFor, setCompareFor] = useState<number | null>(null);
   const [analysisOpen, setAnalysisOpen] = useState(false);
 
@@ -124,22 +124,31 @@ export default function BibleChapter() {
   const prev = chapterNumber > 1 ? chapterNumber - 1 : null;
   const next = meta && chapterNumber < meta.chapters ? chapterNumber + 1 : null;
 
-  const selectedVerse = useMemo(
-    () => data.data?.verses.find((v) => v.number === selected),
-    [data.data, selected],
-  );
+  /** «Juan 3:16-18» o «Juan 3:16, 18, 20». */
+  const refOf = (nums: number[]) => {
+    const n = [...nums].sort((x, y) => x - y);
+    const runs: string[] = [];
+    for (let i = 0; i < n.length; i++) {
+      let j = i;
+      while (j + 1 < n.length && n[j + 1] === n[j] + 1) j++;
+      runs.push(i === j ? `${n[i]}` : `${n[i]}-${n[j]}`);
+      i = j;
+    }
+    return `${meta?.name ?? ""} ${chapterNumber}:${runs.join(", ")}`;
+  };
+  const selSorted = [...sel].sort((x, y) => x - y);
+  const selText = selSorted.map((n) => data.data?.verses.find((v) => v.number === n)?.text ?? "").join(" ");
+  const reference = refOf(sel);
+  const clear = () => setSel([]);
+  const allSaved = sel.length > 0 && sel.every((n) => byVerse[n]?.saved);
 
-  const reference = `${meta?.name ?? ""} ${chapterNumber}:${selected ?? ""}`;
-
-  async function onShareVerse() {
-    if (!selectedVerse) return;
-    const how = await share({
-      title: reference,
-      text: `“${selectedVerse.text}” — ${reference}`,
-      url: shareUrl(`/bible/${book}/${chapterNumber}`),
-    });
-    if (how === "clipboard") toast.success("Versículo copiado");
-    setSelected(null);
+  async function markAll(patch: { color?: string | null; saved?: boolean; note?: string }) {
+    try {
+      for (const n of selSorted) await bibleService.mark(book, chapterNumber, n, patch);
+      marks.reload();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo guardar.");
+    }
   }
 
   if (data.loading) return <DetailSkeleton />;
@@ -175,13 +184,13 @@ export default function BibleChapter() {
             key={v.number}
             onClick={() => {
               haptic("light");
-              setSelected(v.number);
+              setSel((cur) => (cur.includes(v.number) ? cur.filter((x) => x !== v.number) : [...cur, v.number]));
             }}
             className={cn(
               "cursor-pointer rounded-lg px-1.5 py-1 transition-colors",
               byVerse[v.number]?.color &&
                 HIGHLIGHT_COLORS.find((c) => c.id === byVerse[v.number].color)?.className,
-              selected === v.number && "bg-primary/12 ring-1 ring-primary/30",
+              sel.includes(v.number) && "bg-primary/12 ring-1 ring-primary/30",
               speakingVerse === v.number && "bg-primary/15",
             )}
             aria-current={speakingVerse === v.number ? "true" : undefined}
@@ -229,128 +238,69 @@ export default function BibleChapter() {
         </Button>
       </div>
 
-      {/* Verse actions */}
-      <BottomSheet open={selected !== null} onOpenChange={(v) => !v && setSelected(null)}>
-        <BottomSheetContent title={reference} description={selectedVerse?.text}>
-          <div className="mb-4">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Resaltar
-            </p>
-            <div className="flex gap-2.5">
+      {/* Acciones sobre los versículos marcados: barra compacta, no tapa la lectura. */}
+      {sel.length > 0 && (
+        <div className="sticky bottom-2 z-20 mt-4 rounded-2xl border border-border bg-surface/95 p-2.5 shadow-lg backdrop-blur">
+          <div className="mb-2 flex items-center gap-2">
+            <p className="min-w-0 flex-1 truncate text-sm font-medium">{reference}</p>
+            <div className="flex gap-1.5" role="group" aria-label="Resaltar">
               {HIGHLIGHT_COLORS.map((c) => (
                 <button
                   key={c.id}
                   type="button"
                   aria-label={`Resaltar en ${c.label}`}
                   onClick={() => {
-                    if (selected === null) return;
-                    // Volver a tocar el mismo color lo quita.
-                    const actual = byVerse[selected]?.color;
-                    void updateMark(selected, { color: actual === c.id ? null : c.id });
+                    const off = sel.every((n) => byVerse[n]?.color === c.id);
+                    void markAll({ color: off ? null : c.id });
                     haptic("success");
-                    setSelected(null);
+                    clear();
                   }}
-                  className={cn(
-                    "tap-target flex-1 rounded-xl border border-border transition-transform active:scale-95",
-                    c.className,
-                  )}
+                  className={cn("size-7 rounded-full border border-border", c.className)}
                 />
               ))}
             </div>
+            <button type="button" aria-label="Quitar selección" onClick={clear} className="tap-target grid place-items-center rounded-full text-muted-foreground">
+              <X className="size-4" />
+            </button>
           </div>
-
-          <div className="space-y-0.5">
-            <SheetAction
-              icon={Brain}
-              label="Memorizar este versículo"
-              onClick={async () => {
-                if (!selectedVerse || selected === null) return;
+          <div className="scroll-x flex gap-1">
+            {[
+              { icon: Bookmark, label: allSaved ? "Quitar" : "Guardar", run: () => { void markAll({ saved: !allSaved }); toast.success(allSaved ? "Quitado de guardados" : "Guardado en tu biblioteca"); clear(); } },
+              { icon: NotebookPen, label: "Nota", run: () => { setNoteFor(selSorted); clear(); } },
+              { icon: Share2, label: "Compartir", run: () => { setShareFor({ text: selText, reference, link: `/v/${book}.${chapterNumber}.${selSorted[0]}` }); clear(); } },
+              { icon: Copy, label: "Copiar", run: async () => {
+                try { await navigator.clipboard.writeText(`“${selText}” — ${reference}`); toast.success("Copiado"); } catch { toast.error("No pudimos copiar"); }
+                clear();
+              } },
+              { icon: Volume2, label: "Escuchar", run: () => { const i = spoken.findIndex((v) => v.number === selSorted[0]); clear(); if (i >= 0) speech.playAt(i); } },
+              { icon: Brain, label: "Memorizar", run: async () => {
                 try {
-                  await memoryService.add({
-                    ref: reference, book, chapter: chapterNumber, verse: selected,
-                    version: data.data!.version, text: selectedVerse.text,
-                  });
-                  toast.success("Agregado a Memorizar. Repásalo hoy.");
-                } catch (err) {
-                  toast.error(err instanceof Error ? err.message : "No se pudo guardar.");
-                }
-                setSelected(null);
-              }}
-            />
-            <SheetAction
-              icon={Volume2}
-              label="Escuchar desde aquí"
-              onClick={() => {
-                const i = spoken.findIndex((v) => v.number === selected);
-                setSelected(null);
-                if (i >= 0) speech.playAt(i);
-              }}
-            />
-            <SheetAction
-              icon={NotebookPen}
-              label="Añadir nota"
-              onClick={() => {
-                setNoteFor(selected);
-                setSelected(null);
-              }}
-            />
-            <SheetAction
-              icon={Bookmark}
-              label={
-                selected !== null && byVerse[selected]?.saved
-                  ? "Quitar de guardados"
-                  : "Guardar versículo"
-              }
-              onClick={() => {
-                if (selected === null) return;
-                const guardado = Boolean(byVerse[selected]?.saved);
-                void updateMark(selected, { saved: !guardado });
-                toast.success(guardado ? "Quitado de guardados." : "Guardado en tu biblioteca.");
-                setSelected(null);
-              }}
-            />
-            <SheetAction
-              icon={Columns2}
-              label="Comparar versiones"
-              description="El mismo versículo en otras traducciones"
-              onClick={() => {
-                setCompareFor(selected);
-                setSelected(null);
-              }}
-            />
-            <SheetAction
-              icon={Copy}
-              label="Copiar"
-              onClick={async () => {
-                try {
-                  await navigator.clipboard.writeText(`“${selectedVerse?.text}” — ${reference}`);
-                  toast.success("Copiado al portapapeles");
-                } catch {
-                  toast.error("No pudimos copiar");
-                }
-                setSelected(null);
-              }}
-            />
-            <SheetAction
-              icon={Share2}
-              label="Compartir"
-              description="Como texto o como imagen"
-              onClick={() => {
-                setShareFor(selected);
-                setSelected(null);
-              }}
-            />
+                  for (const n of selSorted) {
+                    const t = data.data!.verses.find((v) => v.number === n)?.text ?? "";
+                    await memoryService.add({ ref: refOf([n]), book, chapter: chapterNumber, verse: n, version: data.data!.version, text: t });
+                  }
+                  toast.success(sel.length > 1 ? "Versículos agregados a Memorizar" : "Agregado a Memorizar");
+                } catch (err) { toast.error(err instanceof Error ? err.message : "No se pudo guardar."); }
+                clear();
+              } },
+              ...(sel.length === 1 ? [{ icon: Columns2, label: "Comparar", run: () => { setCompareFor(sel[0]); clear(); } }] : []),
+            ].map((a) => (
+              <button key={a.label} type="button" onClick={() => void a.run()} className="flex min-w-16 flex-col items-center gap-0.5 rounded-xl px-2 py-1.5 text-[0.7rem] text-muted-foreground active:bg-secondary">
+                <a.icon className="size-4 text-foreground" /> {a.label}
+              </button>
+            ))}
           </div>
-        </BottomSheetContent>
-      </BottomSheet>
+        </div>
+      )}
 
       {/* Compartir: texto o imagen, al chat o a otras apps. */}
       {shareFor !== null && (
         <VerseShareSheet
           open={shareFor !== null}
           onOpenChange={(v) => !v && setShareFor(null)}
-          text={data.data.verses.find((v) => v.number === shareFor)?.text ?? ""}
-          reference={`${meta?.name ?? ""} ${chapterNumber}:${shareFor}`}
+          text={shareFor.text}
+          reference={shareFor.reference}
+          link={shareFor.link}
         />
       )}
 
@@ -373,7 +323,7 @@ export default function BibleChapter() {
         chapter={chapterNumber}
         onGoToVerse={(v) => {
           setAnalysisOpen(false);
-          setSelected(v);
+          setSel([v]);
         }}
       />
 
@@ -381,7 +331,7 @@ export default function BibleChapter() {
       <BottomSheet open={noteFor !== null} onOpenChange={(v) => !v && setNoteFor(null)}>
         <BottomSheetContent
           title="Nueva nota"
-          description={`${meta?.name} ${chapterNumber}:${noteFor ?? ""}`}
+          description={noteFor ? refOf(noteFor) : ""}
         >
           <Textarea
             value={note}
@@ -396,7 +346,7 @@ export default function BibleChapter() {
             className="mt-4"
             disabled={!note.trim()}
             onClick={() => {
-              if (noteFor !== null) void updateMark(noteFor, { note });
+              if (noteFor) void Promise.all(noteFor.map((n) => bibleService.mark(book, chapterNumber, n, { note }))).then(() => marks.reload());
               toast.success("Nota guardada");
               setNote("");
               setNoteFor(null);

@@ -187,7 +187,7 @@ export default function Landing() {
       <section className="mx-auto grid max-w-3xl gap-3 px-5 py-14 sm:grid-cols-3">
         {[
           { icon: Users, title: "Comunidad", body: "Grupos, mensajes y eventos con tu iglesia." },
-          { icon: Music, title: "Adoración", body: "Música para orar y leer, sin distracciones." },
+          { icon: Music, title: "Adoración", body: "Instrumentales para orar y leer, sin distracciones." },
           { icon: Church, title: "Iglesias", body: "Encuentra una congregación cerca de ti." },
         ].map((c) => (
           <div key={c.title} className="rounded-3xl border border-border p-5">

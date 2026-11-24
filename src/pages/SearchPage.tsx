@@ -28,7 +28,7 @@ function writeRecent(list: string[]) {
 }
 
 const FILTERS = [
-  "Todo", "Canción", "Artista", "Álbum", "Playlist", "Persona", "Iglesia", "Sermón",
+  "Todo", "Persona", "Iglesia", "Sermón",
   "Podcast", "Video", "Curso", "Grupo", "Evento", "Ministerio", "Biblia",
 ];
 

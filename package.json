@@ -18,7 +18,7 @@
     "test:rules": "firebase emulators:exec --only firestore,auth --project demo-heseria \"node tests/rules.test.mjs\"",
     "deploy:web": "npm run build && firebase deploy --only hosting",
     "deploy:rules": "node scripts/publicar-reglas.cjs",
-    "test": "node tests/memorize.test.mjs && node tests/reference.test.mjs"
+    "test": "node tests/memorize.test.mjs && node tests/reference.test.mjs && node tests/voices.test.mjs"
   },
   "dependencies": {
     "@capacitor-community/text-to-speech": "^8.0.2",

@@ -1,9 +1,9 @@
 import {
   Bell, ChevronRight, Download, Globe, KeyRound, Languages, LogOut, MessageSquareWarning,
-  Monitor, Moon, Palette, Shield, Sun, Trash2, User as UserIcon,
+  Monitor, Moon, Palette, Shield, Sun, Trash2, User as UserIcon, Volume2,
 } from "lucide-react";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { UserAvatar } from "@/components/media/covers";
 import { Button } from "@/components/ui/button";
@@ -11,10 +11,11 @@ import { SettingRow, SimpleSelect, Switch } from "@/components/ui/controls";
 import { BottomSheet, BottomSheetContent, SheetAction } from "@/components/ui/overlays";
 import { Badge, Field, Input, Textarea } from "@/components/ui/primitives";
 import { FeedbackForm } from "@/components/feedback/FeedbackForm";
+import { VoiceSettings } from "@/components/settings/VoiceSettings";
 import { isLocale, LOCALES, useT } from "@/i18n";
 import { useAsync } from "@/hooks/useAsync";
 import { usePageMeta } from "@/hooks/usePageMeta";
-import { isNative, openExternal, platform, saveFile, scheduleDailyVerse } from "@/native";
+import { dailyVerseTime, isNative, openExternal, platform, saveFile, scheduleDailyVerse } from "@/native";
 import {
   accountProviders, authService, disableWebPush, enableWebPush, exportMyData, libraryService,
 } from "@/services";
@@ -28,6 +29,7 @@ const SECTIONS = [
   { id: "seguridad", label: "Seguridad", icon: KeyRound },
   { id: "privacidad", label: "Privacidad y datos", icon: Shield },
   { id: "notificaciones", label: "Recordatorios", icon: Bell },
+  { id: "voz", label: "Lectura en voz alta", icon: Volume2 },
   { id: "apariencia", label: "Apariencia", icon: Palette },
   { id: "idioma", label: "Idioma", icon: Languages },
   { id: "descargas", label: "Descargas", icon: Download },
@@ -47,7 +49,10 @@ export default function Settings() {
   const t = useT();
   const providers = accountProviders();
 
-  const [open, setOpen] = useState<SectionId | null>(null);
+  const [params] = useSearchParams();
+  // /settings?abrir=notificaciones abre directo esa sección (desde la campana).
+  const [open, setOpen] = useState<SectionId | null>(() => (params.get("abrir") as SectionId | null) ?? null);
+  const [dailyTime, setDailyTime] = useState(dailyVerseTime);
   const [busy, setBusy] = useState(false);
 
   // Cuenta
@@ -335,8 +340,8 @@ export default function Settings() {
             />
           </SettingRow>
           <SettingRow
-            title="Versículo del día"
-            description="Un aviso cada mañana a las 7:00 para leer la Biblia."
+            title="Recordatorio de lectura"
+            description={isNative() ? `Cada día a las ${dailyTime}, con el versículo del día.` : "Cada mañana a las 7:00, con el versículo del día."}
           >
             <Switch
               checked={daily}
@@ -362,10 +367,33 @@ export default function Settings() {
               }}
             />
           </SettingRow>
+          {isNative() && daily && (
+            <SettingRow title="Hora del recordatorio" description="Elige cuándo quieres leer.">
+              <input
+                type="time"
+                aria-label="Hora del recordatorio"
+                value={dailyTime}
+                className="rounded-lg border border-border bg-surface px-2 py-1 text-sm"
+                onChange={async (e) => {
+                  const t = e.target.value || "07:00";
+                  setDailyTime(t);
+                  localStorage.setItem("heseria.dailyTime", t);
+                  if (await scheduleDailyVerse(true, t)) toast.success(`Te recordaremos a las ${t}`);
+                }}
+              />
+            </SettingRow>
+          )}
           <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
             Los mensajes, las oraciones y los anuncios llegan a la campana de la app mientras la
             tienes abierta.
           </p>
+        </BottomSheetContent>
+      </BottomSheet>
+
+      {/* --------------------------------------------------------------- voz */}
+      <BottomSheet open={open === "voz"} onOpenChange={(v) => !v && setOpen(null)}>
+        <BottomSheetContent title="Lectura en voz alta">
+          {open === "voz" && <VoiceSettings />}
         </BottomSheetContent>
       </BottomSheet>
 

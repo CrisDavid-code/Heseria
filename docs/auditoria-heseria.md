@@ -116,3 +116,22 @@ El contenido del diario no se envía a analítica, logs, IA ni notificaciones.
 | 6. Lector EPUB/PDF/TXT | Completo; biblioteca vacía hasta cargar libros verificados |
 
 Siguientes pasos sugeridos: diccionario y concordancia con fuentes con licencia, series de devocionales con recordatorios, solicitudes de corrección de iglesias, servidor TURN para llamadas.
+
+## 8. Ronda de mejoras (pedidas por el propietario)
+
+| Pedido | Qué se hizo | Verificación |
+|---|---|---|
+| Menús repetidos | Biblioteca ya no repite sus pestañas; el encabezado marca solo la pestaña activa (antes las marcaba todas); Explorar sin la cuadrícula que duplicaba el menú | E2E: una sola pestaña activa |
+| Quitar Música | Fuera rutas `/music` y `/artist`, menús, accesos rápidos, Explorar, Biblioteca, perfil y buscador. Se conservan los instrumentales para leer | E2E: `/music` no existe |
+| Videollamada en pareja | Sin recorte (no se fuerza 16:9 y se usa el zoom más abierto si la cámara lo permite), video completo con opción de llenar, «Leer juntos» dentro de la llamada con el capítulo sincronizado y notas compartidas. Se quitó el botón «Altavoz» que no hacía nada | Compila; la llamada real necesita dos teléfonos |
+| Podcasts | Cola con toda la lista: anterior/siguiente pasan de episodio (sin dar la vuelta), lista de episodios para saltar, nota con el minuto que queda en Mi diario, controles en la pantalla de bloqueo | Compila |
+| Voz natural | Se elige la voz más natural del teléfono (neuronales/Google en red/«Enhanced») y se puede cambiar y probar en Configuración → Lectura en voz alta; en Android, botón para instalar las voces de Google | `tests/voices.test.mjs` |
+| Búsqueda de libros | «Apocalipsis», «apoc», «genesis» muestran el libro sin elegir testamento; Enter abre sus capítulos | E2E |
+| Varios versículos | Selección múltiple (Juan 3:16-17), barra compacta abajo que no tapa la lectura: resaltar, guardar, nota, compartir, copiar, escuchar, memorizar | E2E |
+| Iglesias cercanas | Además del directorio, búsqueda en vivo en OpenStreetMap alrededor de la ubicación (hasta 300 resultados); ficha con teléfono, correo y sitio como enlaces y «Ver en Google Maps» (horarios, fotos y reseñas). Sin datos inventados | Compila; Overpass desde el navegador del usuario |
+| Radios | Directorio abierto Radio Browser (verifica las transmisiones a diario): Radio Viva 95.3, Peniel, Santa Sion, TGN, Ministerios Revelación y emisoras cristianas de habla hispana; búsqueda por nombre en todo el directorio. Se excluyen católicas y transmisiones sin https | E2E: aparece Radio Viva |
+| Sermones libres | 185 predicaciones en español de archive.org de una lista cerrada de predicadores que publican con licencia Creative Commons o dominio público; cada una con autor, licencia y enlace a la fuente | `scripts/sermones-libres.mjs --probar` |
+| Corazones y conteos | Corazón rojo en todo lo que se marca; «Estoy orando» con conteo y estado real (se puede quitar); versículo del día con «Amén» y conteo de compartidos | `test:rules` 157 bien |
+| Recordatorio de lectura | El botón de la campana abre Configuración → Recordatorios; en la app se elige la hora | E2E |
+
+**No resuelto:** Radio Ilumina no está en el directorio abierto y no se encontró su transmisión oficial; se puede agregar en Administración → Radios cuando se tenga la URL de la emisora.

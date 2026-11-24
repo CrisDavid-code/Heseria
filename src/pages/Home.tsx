@@ -9,6 +9,7 @@ import {
 } from "@/components/cards";
 import { GenerativeCover, HeroMedia } from "@/components/media/covers";
 import { DailyVerseCard } from "@/components/bible/DailyVerseCard";
+import { PrayButton } from "@/components/social/PrayButton";
 import { AsyncBoundary, RailSkeleton } from "@/components/states";
 import { Button } from "@/components/ui/button";
 import { Badge, Progress } from "@/components/ui/primitives";
@@ -47,16 +48,16 @@ const QUICK_LINKS: Partial<Record<Role, { label: string; href: string; icon: Luc
     { label: "Certificados", href: "/teacher/certificates", icon: Sparkles },
   ],
   musician: [
-    { label: "Playlists", href: "/music/playlists", icon: Music },
+    { label: "Podcasts", href: "/podcasts", icon: Music },
     { label: "Cursos de música", href: "/academy", icon: GraduationCap },
     { label: "Ministerios", href: "/ministries", icon: Users },
     { label: "Próximos eventos", href: "/events", icon: CalendarDays },
   ],
   artist: [
-    { label: "Mi música", href: "/artist/music", icon: Music },
-    { label: "Estadísticas", href: "/artist/analytics", icon: Sparkles },
-    { label: "Mis eventos", href: "/artist/events", icon: CalendarDays },
-    { label: "Álbumes", href: "/artist/albums", icon: Music },
+    { label: "Ministerios", href: "/ministries", icon: Users },
+    { label: "Próximos eventos", href: "/events", icon: CalendarDays },
+    { label: "Podcasts", href: "/podcasts", icon: Music },
+    { label: "Comunidad", href: "/community", icon: Users },
   ],
   creator: [
     { label: "Mi contenido", href: "/creator/content", icon: BookOpen },
@@ -81,7 +82,7 @@ const QUICK_LINKS: Partial<Record<Role, { label: string; href: string; icon: Luc
 const DEFAULT_QUICK: { label: string; href: string; icon: LucideIcon }[] = [
   { label: "Leer la Biblia", href: "/bible", icon: BookOpen },
   { label: "Devocional de hoy", href: "/devotionals", icon: Sparkles },
-  { label: "Escuchar música", href: "/music", icon: Music },
+  { label: "Escuchar podcasts", href: "/podcasts", icon: Music },
   { label: "Orar por alguien", href: "/prayer", icon: Heart },
 ];
 
@@ -333,24 +334,8 @@ export default function Home() {
               <div key={p.id} className="surface-card p-4">
                 <p className="text-sm font-medium">{p.title}</p>
                 <p className="mt-1 text-xs text-muted-foreground clamp-2">{p.body}</p>
-                <div className="mt-3 flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">
-                    {p.prayingCount} orando
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="subtle"
-                    onClick={async () => {
-                      try {
-                        await prayerService.pray(p.id);
-                        toast.success("Gracias por orar. Se lo hicimos saber.");
-                      } catch (err) {
-                        toast.error(err instanceof Error ? err.message : "No se pudo registrar tu oración.");
-                      }
-                    }}
-                  >
-                    <Heart className="size-3.5" /> Estoy orando
-                  </Button>
+                <div className="mt-3 flex justify-end">
+                  <PrayButton id={p.id} count={p.prayingCount} />
                 </div>
               </div>
             ))}

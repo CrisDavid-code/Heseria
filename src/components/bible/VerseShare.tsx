@@ -37,6 +37,7 @@ export function VerseShareSheet({
   reference,
   link = "/bible",
   tab = "imagen",
+  onShared,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -45,6 +46,8 @@ export function VerseShareSheet({
   /** Ruta que abre quien recibe el versículo (p. ej. /v/juan.3.16, pública). */
   link?: string;
   tab?: "imagen" | "texto" | "chat";
+  /** Se llama cada vez que el versículo sale de la app (para contar compartidos). */
+  onShared?: () => void;
 }) {
   const [format, setFormat] = useState<Format>("cuadrado");
   const [background, setBackground] = useState<Background>(() => backgroundFor(reference));
@@ -80,7 +83,7 @@ export function VerseShareSheet({
       });
       if (how === "download") toast.success("Imagen guardada en tus descargas.");
       if (how === "failed") toast.error("No pudimos compartir la imagen.");
-      else haptic("success");
+      else { haptic("success"); onShared?.(); }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "No se pudo compartir.");
     } finally {
@@ -96,6 +99,7 @@ export function VerseShareSheet({
     });
     if (how === "clipboard") toast.success("Versículo copiado al portapapeles.");
     else if (how !== "failed") haptic("success");
+    if (how !== "failed") onShared?.();
   }
 
   async function copy() {
@@ -199,7 +203,7 @@ export function VerseShareSheet({
                   <Share2 className="size-4" /> Compartir
                 </Button>
               </div>
-              <Networks text={`${plain}\n\n${INVITACION}`} url={shareUrl(link)} subject={reference} />
+              <Networks text={`${plain}\n\n${INVITACION}`} url={shareUrl(link)} subject={reference} onPick={onShared} />
             </TabsContent>
 
             {/* --------------------------------------------------- chat */}
@@ -224,7 +228,7 @@ export function VerseShareSheet({
 /* ------------------------------------------------- redes y aplicaciones */
 
 /** Atajos directos a cada aplicación (en el teléfono abren la app instalada). */
-function Networks({ text, url, subject }: { text: string; url: string; subject: string }) {
+function Networks({ text, url, subject, onPick }: { text: string; url: string; subject: string; onPick?: () => void }) {
   const t = encodeURIComponent(`${text}\n${url}`);
   const targets = [
     { name: "WhatsApp", href: `https://wa.me/?text=${t}`, color: "bg-[#25D366]" },
@@ -244,7 +248,7 @@ function Networks({ text, url, subject }: { text: string; url: string; subject: 
             href={x.href}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={() => haptic("light")}
+            onClick={() => { haptic("light"); onPick?.(); }}
             className={cn("rounded-xl px-2 py-2.5 text-center text-xs font-semibold text-white", x.color)}
           >
             {x.name}

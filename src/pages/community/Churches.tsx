@@ -80,7 +80,7 @@ export function ChurchesList() {
         lng: located ? position.longitude : undefined,
         radius: located ? radius : undefined,
         denomination: denomination || undefined,
-        limit: 20,
+        limit: 300,
       }),
     [located, position?.latitude, position?.longitude, radius, denomination],
   );
@@ -303,13 +303,16 @@ function ChurchProfile({ id }: { id: string }) {
       <div className="flex flex-wrap gap-1.5">
         <Badge variant="primary">{c.denomination}</Badge>
         <Badge variant="outline">{c.language}</Badge>
-        <Badge variant="outline">
-          <Users className="size-3" /> {formatCompact(c.members)} miembros
-        </Badge>
-        <Badge variant="outline">a {c.distanceKm} km</Badge>
+        {c.members > 0 && (
+          <Badge variant="outline">
+            <Users className="size-3" /> {formatCompact(c.members)} miembros
+          </Badge>
+        )}
+        {c.distanceKm ? <Badge variant="outline">a {c.distanceKm} km</Badge> : null}
       </div>
 
       <div className="flex gap-2.5">
+        {!c.live && (
         <Button
           className="flex-1"
           variant={joined ? "secondary" : "primary"}
@@ -321,6 +324,7 @@ function ChurchProfile({ id }: { id: string }) {
         >
           {joined ? "Eres miembro" : "Unirme"}
         </Button>
+        )}
         <Button
           variant="outline"
           onClick={() =>
@@ -447,17 +451,29 @@ function ChurchProfile({ id }: { id: string }) {
       <section>
         <h2 className="mb-2.5 text-section font-semibold">Contacto</h2>
         <ul className="space-y-2">
-          <li className="flex items-center gap-3 rounded-xl border border-border p-3 text-sm">
-            <Mail className="size-4 shrink-0 text-muted-foreground" />
-            <span className="min-w-0 truncate">{c.contact.email}</span>
-          </li>
-          <li className="flex items-center gap-3 rounded-xl border border-border p-3 text-sm">
-            <Phone className="size-4 shrink-0 text-muted-foreground" />
-            <span className="min-w-0 truncate">{c.contact.phone}</span>
-          </li>
-          <li className="flex items-center gap-3 rounded-xl border border-border p-3 text-sm">
-            <Globe className="size-4 shrink-0 text-muted-foreground" />
-            <span className="min-w-0 truncate">{c.contact.site}</span>
+          {[
+            { icon: Phone, text: c.contact.phone, href: c.contact.phone && `tel:${c.contact.phone.replace(/[^\d+]/g, "")}` },
+            { icon: Mail, text: c.contact.email, href: c.contact.email && `mailto:${c.contact.email}` },
+            { icon: Globe, text: c.contact.site, href: c.contact.site && (/^https?:/.test(c.contact.site) ? c.contact.site : `https://${c.contact.site}`) },
+          ].filter((x) => x.text).map((x) => (
+            <li key={x.text}>
+              <a href={x.href || undefined} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 rounded-xl border border-border p-3 text-sm active:bg-secondary">
+                <x.icon className="size-4 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 truncate">{x.text}</span>
+              </a>
+            </li>
+          ))}
+          {/* Horarios, fotos, reseñas y teléfono actualizados: la ficha de Google Maps del lugar. */}
+          <li>
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.lat != null ? `${c.name} ${c.lat},${c.lng}` : `${c.name} ${c.city} ${c.country}`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 p-3 text-sm active:bg-secondary"
+            >
+              <MapPin className="size-4 shrink-0 text-primary" />
+              <span className="min-w-0 flex-1">Ver en Google Maps: horarios, fotos y reseñas</span>
+            </a>
           </li>
         </ul>
       </section>

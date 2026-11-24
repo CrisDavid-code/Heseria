@@ -176,14 +176,17 @@ export function PodcastDetail() {
                 variant="subtle"
                 className="mt-3"
                 onClick={() => {
-                  player.playTrack({
-                    id: e.id,
-                    title: e.title,
-                    subtitle: p.title,
-                    color: p.color,
-                    durationSec: e.durationSec,
-                    src: e.audioUrl ? mediaUrl(e.audioUrl) : undefined,
-                  });
+                  player.play(
+                    p.episodes.map((x) => ({
+                      id: x.id,
+                      title: x.title,
+                      subtitle: p.title,
+                      color: p.color,
+                      durationSec: x.durationSec,
+                      src: x.audioUrl ? mediaUrl(x.audioUrl) : undefined,
+                    })),
+                    p.episodes.indexOf(e),
+                  );
                   toast.success("Reproduciendo episodio");
                 }}
               >
