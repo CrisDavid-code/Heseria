@@ -90,7 +90,7 @@ export function AppShell() {
     };
   }, []);
 
-  // heseria://... and https://heseria.app/... open the matching screen.
+  // heseria://... and https://heseria.web.app/... open the matching screen.
   useEffect(() => {
     return onDeepLink((path) => navigate(path));
   }, [navigate]);

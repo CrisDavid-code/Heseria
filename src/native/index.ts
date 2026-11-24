@@ -704,7 +704,7 @@ export function onHardwareBack(handler: () => boolean): () => void {
 }
 
 /**
- * Deep links: heseria://bible/juan/3 and https://heseria.app/... links.
+ * Deep links: heseria://bible/juan/3 and https://heseria.web.app/... links.
  * The listener receives the full URL; the router maps it to a route.
  * See docs/deep-links.md for the scheme and the universal-link setup
  * (Android assetlinks.json / iOS apple-app-site-association) Claude Code
@@ -724,7 +724,7 @@ export function onDeepLink(handler: (path: string) => void): () => void {
   return () => remove?.();
 }
 
-/** "heseria://bible/juan/3" and "https://heseria.app/bible/juan/3" -> "/bible/juan/3" */
+/** "heseria://bible/juan/3" and "https://heseria.web.app/bible/juan/3" -> "/bible/juan/3" */
 export function parseDeepLink(url: string): string {
   try {
     const parsed = new URL(url);
@@ -739,7 +739,7 @@ export function parseDeepLink(url: string): string {
 
 /** Builds a shareable link for any piece of content (spec §36). */
 export function shareUrl(path: string): string {
-  return `https://heseria.app${path.startsWith("/") ? path : `/${path}`}`;
+  return `https://heseria.web.app${path.startsWith("/") ? path : `/${path}`}`;
 }
 
 /* ------------------------------------------------------ guardar archivos */

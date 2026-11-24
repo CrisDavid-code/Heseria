@@ -53,6 +53,7 @@ export function FoundationIndex() {
         </div>
       </HeroMedia>
 
+      {(cases.data?.length ?? 0) > 0 && (
       <div className="surface-card p-4">
         <div className="mb-2 flex items-baseline justify-between">
           <p className="text-sm font-medium">Recaudado este año</p>
@@ -62,9 +63,10 @@ export function FoundationIndex() {
         </div>
         <Progress value={pct(totalRaised, totalGoal)} label="Progreso global" />
         <p className="mt-1.5 text-xs text-muted-foreground">
-          de {formatMoney(totalGoal)} en {cases.data?.length ?? 0} casos activos
+          de {formatMoney(totalGoal)} en {cases.data?.length} casos activos
         </p>
       </div>
+      )}
 
       <div className="grid grid-cols-2 gap-2.5">
         <Button asChild size="lg">

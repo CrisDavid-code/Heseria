@@ -1018,7 +1018,7 @@ export interface BibleService {
   books(): Promise<BibleBook[]>;
   chapter(book: string, chapter: number, version?: string): Promise<BibleChapter>;
   search(q: string): Promise<{ ref: string; text: string }[]>;
-  verseOfTheDay(): Promise<{ ref: string; text: string }>;
+  verseOfTheDay(): Promise<{ ref: string; text: string; book: string; chapter: number; verse: number }>;
   marks(book?: string, chapter?: number): Promise<VerseMark[]>;
   savedVerses(): Promise<(VerseMark & { ref: string; text: string })[]>;
   mark(
@@ -1053,10 +1053,7 @@ export const bibleService: BibleService = {
   books: () => bible.books(),
   chapter: (book, n, version) => bible.chapter(book, n, version === "hsd" || !version ? bible.DEFAULT_VERSION : version),
   search: (q) => bible.search(q),
-  async verseOfTheDay() {
-    const v = await bible.verseOfTheDay();
-    return { ref: v.ref, text: v.text };
-  },
+  verseOfTheDay: () => bible.verseOfTheDay(),
 
   marks: (book, n) =>
     friendly(async () => {

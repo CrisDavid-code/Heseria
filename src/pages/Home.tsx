@@ -8,6 +8,7 @@ import {
   ChurchCard, ContinueCard, EventCard, FoundationCaseCard, MediaCard, Rail,
 } from "@/components/cards";
 import { GenerativeCover, HeroMedia } from "@/components/media/covers";
+import { DailyVerseCard } from "@/components/bible/DailyVerseCard";
 import { AsyncBoundary, RailSkeleton } from "@/components/states";
 import { Button } from "@/components/ui/button";
 import { Badge, Progress } from "@/components/ui/primitives";
@@ -96,12 +97,20 @@ const userById = (id: string) => users.find((u) => u.id === id);
 
 /* -------------------------------------------------------------------- page */
 
+/** Resumen sin ceros: solo menciona lo que sí hay. */
+function summary(prayers: number, events: number) {
+  const parts = [
+    prayers > 0 && `${prayers} ${prayers === 1 ? "petición de oración activa" : "peticiones de oración activas"}`,
+    events > 0 && `${events} ${events === 1 ? "evento próximo" : "eventos próximos"}`,
+  ].filter(Boolean);
+  return parts.length ? `Tienes ${parts.join(" y ")} en tu comunidad.` : "«Este es el día que hizo Jehová; nos gozaremos y alegraremos en él» (Salmo 118:24).";
+}
+
 export default function Home() {
   const { user, role } = useSession();
   const player = usePlayer();
   usePageMeta("Inicio", "Tu inicio personalizado en Heseria.");
 
-  const verse = useAsync(() => bibleService.verseOfTheDay(), []);
   const devotional = useAsync(() => devotionalService.today(), []);
   const plans = useAsync(() => planService.list(), []);
   const watching = useAsync(() => recommendationService.continueWatching(), []);
@@ -130,8 +139,7 @@ export default function Home() {
               {greeting()}, {user.firstName}
             </h1>
             <p className="mt-1.5 max-w-md text-sm text-white/80">
-              Tienes {prayers.data?.length ?? 0} peticiones de oración activas y{" "}
-              {events.data?.length ?? 0} eventos próximos en tu comunidad.
+              {summary(prayers.data?.length ?? 0, events.data?.length ?? 0)}
             </p>
             <div className="mt-5 flex flex-wrap gap-2">
               {quick.map((q) => (
@@ -151,38 +159,7 @@ export default function Home() {
           </div>
         </HeroMedia>
 
-        <div className="surface-card flex flex-col p-5">
-          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-primary">
-            Versículo del día
-          </p>
-          {verse.loading ? (
-            <div className="mt-4 space-y-2">
-              <div className="h-4 w-full animate-pulse rounded bg-muted" />
-              <div className="h-4 w-5/6 animate-pulse rounded bg-muted" />
-              <div className="h-4 w-3/5 animate-pulse rounded bg-muted" />
-            </div>
-          ) : (
-            <>
-              <blockquote className="mt-3 font-display text-lg leading-snug">
-                “{verse.data?.text}”
-              </blockquote>
-              <p className="mt-2.5 text-sm font-medium text-muted-foreground">{verse.data?.ref}</p>
-            </>
-          )}
-          <div className="mt-auto flex gap-2 pt-5">
-            <Button asChild size="sm" variant="subtle" full>
-              <Link to="/bible">Leer el capítulo</Link>
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => toast.success("Versículo guardado en tu biblioteca")}
-              aria-label="Guardar versículo"
-            >
-              <Heart className="size-4" />
-            </Button>
-          </div>
-        </div>
+        <DailyVerseCard />
       </section>
 
       {/* --------------------------------------------------- continue rails */}
