@@ -54,7 +54,7 @@ Estados: **Completa**, **Parcial**, **Visual solamente**, **Defectuosa**, **Inex
 | Música | Instrumentales originales al leer | `public/musica`, `ReadingMusic.tsx` | Completa | Conservar | — | — |
 | Videos/TV | Videos y sermones publicados, YouTube/Vimeo incrustados | `lib/media-source.ts`, `MediaPlayer.tsx` | Parcial (sin canales en vivo; catálogo vacío) | Pendiente | Permisos por canal | — |
 | Lector | EPUB/PDF/TXT con marcadores | Solo se adjuntan archivos (`Files.tsx`) | Inexistente | **Implementar** | epub.js + pdf.js (carga diferida) | `/lector`: abre archivos del teléfono (quedan solo en el dispositivo), recuerda la página, marcadores, tamaño de letra. Biblioteca administrada (`books`, licencia obligatoria). E2E: PDF página 1→2 y TXT |
-| IA | Asistente bíblico | No existe | Inexistente | **Implementar** | **Clave del proveedor** como secreto del Worker | `/asistente` + `workers/push/src/ai.ts`: verifica el token de sesión, tope de 20 preguntas/día, respuesta marcada «generada por IA» con referencias enlazadas a la Biblia. Sin clave: «no configurado» (probado en local: 503 sin clave, 401 con token falso) |
+| IA | Asistente bíblico | No existe | Inexistente | **Descartado** por decisión del propietario | — | Se retiró la pantalla, el servicio y el endpoint del Worker |
 | Familia | Espacios, perfiles infantiles, actividades por edad | No existe | Inexistente | **Implementar** | Consentimiento del tutor según el país | `/familia`: código de invitación, tutores y miembros, perfiles infantiles con nombre/edad/avatar (sin foto, fecha ni contacto), 12 actividades bíblicas por edad con progreso. E2E correcto |
 | Parejas | Vinculación, estudio compartido, Biblia sincronizada | No existe | Inexistente | **Implementar** | — | `/pareja`: código de un solo uso (7 días), notas compartidas, «Leer juntos» y seguimiento opcional mientras se lee, llamada y videollamada con la WebRTC existente (el navegador pide permiso; nada se graba), desvincular. E2E correcto |
 | Llamadas | Voz y video 1 a 1 | `store/call.ts` (WebRTC, `getUserMedia` con permiso) | Parcial (STUN público; sin TURN) | Reutilizar para Parejas | Servidor TURN para redes cerradas | — |
@@ -79,7 +79,6 @@ Estados: **Completa**, **Parcial**, **Visual solamente**, **Defectuosa**, **Inex
 - Una pareja se forma solo con un código válido y una sola vez; nadie de fuera (ni la administración) ve la pareja ni sus notas.
 - Una familia solo la ven sus miembros; quien entra con código entra como miembro (no tutor) y solo un tutor crea o edita perfiles infantiles, que no aceptan campos de contacto.
 - El registro de licencias es solo de la administración y no acepta estados inventados.
-- `aiUsage` (contador del asistente) no tiene regla: solo el Worker lo toca con la cuenta de servicio.
 
 El contenido del diario no se envía a analítica, logs, IA ni notificaciones.
 
@@ -92,9 +91,7 @@ El contenido del diario no se envía a analítica, logs, IA ni notificaciones.
 | `npm run test:rules` | 153 bien, 0 mal |
 | `npm test` (memorizar, referencias) | ok |
 | Recorrido E2E (Chromium + emuladores de Auth y Firestore) | Correcto: registro, Juan 3, lectura en voz alta visible, memorizar y repasar, continuar leyendo, diario de oración con «Dios respondió» y radio vacía. Sin errores de página |
-| Recorrido E2E 2 (dos cuentas) | Correcto: código de pareja, vinculación, nota compartida, pasaje sincronizado, familia con perfil infantil y progreso, ingreso por código como miembro sin permisos de tutor, lector PDF (página 1→2) y TXT, asistente «no configurado». Sin errores de página |
-| Worker `/ia` en local (`wrangler dev`) | 503 «no-configurado» sin clave; 401 con token falso; CORS solo para los dominios de Heseria |
-| Asistente con el proveedor real | **No probado** (no hay clave) |
+| Recorrido E2E 2 (dos cuentas) | Correcto: código de pareja, vinculación, nota compartida, pasaje sincronizado, familia con perfil infantil y progreso, ingreso por código como miembro sin permisos de tutor, lector PDF (página 1→2) y TXT. Sin errores de página |
 | Lectura en voz alta **sonando** en un teléfono | **No probada** (no hay dispositivo en este entorno) |
 | Radio con una transmisión real | **No probada** (no hay emisoras verificadas; la red del entorno bloquea zeno.fm) |
 
@@ -102,7 +99,6 @@ El contenido del diario no se envía a analítica, logs, IA ni notificaciones.
 
 1. **RVR1960, NTV, LBLA, DHH y TLA:** se necesita el permiso escrito de las Sociedades Bíblicas Unidas, Tyndale y Lockman para distribuirlas, usarlas sin conexión, leerlas en voz alta y usarlas con IA.
 2. **Radios:** antes de activar cada emisora hay que confirmar su fuente oficial, la URL de transmisión y el permiso de reproducción. Las condiciones de Zeno.fm no se pudieron leer desde este entorno.
-3. **Asistente IA:** para activarlo hacen falta (a) el secreto `ANTHROPIC_API_KEY` en el repositorio (se pasa al Worker al publicarlo, nunca a la app) y (b) la variable del repositorio `AI_URL` con la dirección del Worker terminada en `/ia`. Costo por pregunta con el modelo configurado: centavos; el tope diario por cuenta lo limita. Falta la licencia de uso con IA de cada versión bíblica.
 4. **Libros de dominio público:** la red del entorno bloquea Project Gutenberg; la biblioteca queda vacía hasta que la administración agregue libros verificados (Admin → Biblioteca).
 5. **Familia:** faltan las reglas de consentimiento del tutor y de protección de menores según el país.
 6. **Llamadas en redes cerradas:** hace falta un servidor TURN, que puede tener costo.
@@ -116,7 +112,7 @@ El contenido del diario no se envía a analítica, logs, IA ni notificaciones.
 | 2. HESERIA Parejas | Completo |
 | 3. HESERIA Familia | Completo (falta revisión legal del consentimiento) |
 | 4. Registro de licencias | Completo |
-| 5. Asistente IA | Completo, **inactivo hasta configurar la clave** |
+| 5. Asistente IA | Descartado por decisión del propietario |
 | 6. Lector EPUB/PDF/TXT | Completo; biblioteca vacía hasta cargar libros verificados |
 
 Siguientes pasos sugeridos: diccionario y concordancia con fuentes con licencia, series de devocionales con recordatorios, solicitudes de corrección de iglesias, servidor TURN para llamadas.

@@ -6,15 +6,12 @@
  * La clave de la cuenta de servicio vive solo como secreto del Worker. El APK no lo necesita:
  * programa su propio aviso local (src/native → scheduleDailyVerse).
  *
- * POST /ia: asistente bíblico (ver ai.ts).
  * GET /prueba?token=<FCM> envía el versículo de hoy a ese dispositivo (para probar sin esperar).
  */
 import { dailyVerse } from "../../../src/data/daily-verses";
-import { handleAi } from "./ai";
 
 export interface Env {
   FIREBASE_SERVICE_ACCOUNT: string;
-  ANTHROPIC_API_KEY?: string;
   SITE: string;
   DATABASE: string;
 }
@@ -31,9 +28,6 @@ export default {
   },
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
-    if (url.pathname === "/ia") {
-      return handleAi(req, env, async () => accessToken(JSON.parse(env.FIREBASE_SERVICE_ACCOUNT) as ServiceAccount));
-    }
     const token = url.searchParams.get("token");
     if (url.pathname !== "/prueba" || !token) return new Response("Heseria push", { status: 200 });
     const sa = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT) as ServiceAccount;

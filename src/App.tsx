@@ -169,7 +169,6 @@ const AdminAudience = lazy(() => eng().then((m) => ({ default: m.AdminAudience }
 
 const ContentDetail = lazy(() => import("@/pages/content/ContentDetail"));
 const Journal = lazy(() => import("@/pages/personal/Journal"));
-const Assistant = lazy(() => import("@/pages/bible/Assistant"));
 const Couple = lazy(() => import("@/pages/personal/Couple"));
 const Family = lazy(() => import("@/pages/personal/Family"));
 const Memorize = lazy(() => import("@/pages/bible/Memorize"));
@@ -224,7 +223,6 @@ export function App() {
             <Route path="/prayer" element={<PrayerList />} />
             <Route path="/prayer/new" element={<PrayerNew />} />
             <Route path="/diario" element={<Journal />} />
-            <Route path="/asistente" element={<Assistant />} />
             <Route path="/lector" element={<Reader />} />
             <Route path="/pareja" element={<Couple />} />
             <Route path="/familia" element={<Family />} />

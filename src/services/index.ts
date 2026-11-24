@@ -3811,35 +3811,6 @@ export const licenseService = {
     }),
 };
 
-/* ================================================================ asistente IA */
-
-const AI_URL = (import.meta.env.VITE_AI_URL as string | undefined) ?? "";
-
-/** Asistente bíblico: la clave del proveedor vive en el Worker; aquí solo va la sesión. */
-export const aiService = {
-  configured: () => Boolean(AI_URL),
-  ask: async (question: string, context = ""): Promise<{ answer: string; left: number }> => {
-    if (!AI_URL) throw new AppError("El asistente todavía no está configurado.");
-    const token = await auth.currentUser?.getIdToken();
-    if (!token) throw new AppError("Inicia sesión para usar el asistente.");
-    const res = await fetch(AI_URL, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ question, context }),
-    }).catch(() => null);
-    const data = (await res?.json().catch(() => null)) as { answer?: string; left?: number; error?: string; limit?: number } | null;
-    if (res?.ok && data?.answer) return { answer: data.answer, left: data.left ?? 0 };
-    const why: Record<string, string> = {
-      "no-configurado": "El asistente todavía no está configurado.",
-      limite: `Llegaste al límite de ${data?.limit ?? 20} preguntas de hoy. Vuelve mañana.`,
-      sesion: "Tu sesión venció. Vuelve a entrar.",
-      rechazada: "No puedo responder esa pregunta. Intenta formularla de otra manera.",
-      ocupado: "El asistente está ocupado. Intenta en un momento.",
-    };
-    throw new AppError(why[data?.error ?? ""] ?? "No se pudo obtener respuesta. Revisa tu conexión.");
-  },
-};
-
 /* ================================================================ biblioteca */
 
 export interface CatalogBook { id: ID; title: string; author: string; format: "epub" | "pdf" | "txt"; url: string; license: string; source: string; status: "activo" | "retirado" }
