@@ -16,3 +16,10 @@ assert.equal(sorted[0], "Microsoft Dalia Online (Natural) - Spanish (Mexico)");
 assert.ok(sorted.indexOf("es-us-x-esd-network") < sorted.indexOf("es-us-x-esd-local"), "la voz en red supera a la local");
 assert.equal(sorted.at(-1), "eSpeak Spanish");
 console.log("voices: ok");
+
+// La lectura no dice asteriscos ni marcas, pero conserva ¡ ¿ y la puntuación.
+import { cleanForSpeech } from "../src/lib/voices.ts";
+assert.equal(cleanForSpeech("*Bienaventurado* el varón; ¿quién? ¡Dios!"), "Bienaventurado el varón; ¿quién? ¡Dios!");
+assert.equal(cleanForSpeech("Y dijo Dios:* Sea la luz[a]; y fue la luz."), "Y dijo Dios: Sea la luz; y fue la luz.");
+assert.equal(cleanForSpeech("Jehová es mi pastor ** , nada me faltará."), "Jehová es mi pastor, nada me faltará.");
+console.log("limpieza de lectura: ok");

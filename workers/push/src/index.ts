@@ -6,9 +6,11 @@
  * La clave de la cuenta de servicio vive solo como secreto del Worker. El APK no lo necesita:
  * programa su propio aviso local (src/native → scheduleDailyVerse).
  *
+ * GET /libro/<id>/<archivo>.pdf: los libros de dominio público del lector (solo los de la lista).
  * GET /prueba?token=<FCM> envía el versículo de hoy a ese dispositivo (para probar sin esperar).
  */
 import { dailyVerse } from "../../../src/data/daily-verses";
+import books from "../../../src/content/books.json";
 
 export interface Env {
   FIREBASE_SERVICE_ACCOUNT: string;
@@ -28,6 +30,7 @@ export default {
   },
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
+    if (url.pathname.startsWith("/libro/")) return book(url, req);
     const token = url.searchParams.get("token");
     if (url.pathname !== "/prueba" || !token) return new Response("Heseria push", { status: 200 });
     const sa = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT) as ServiceAccount;
@@ -144,4 +147,28 @@ function b64url(bytes: Uint8Array) {
   let s = "";
   bytes.forEach((b) => (s += String.fromCharCode(b)));
   return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+/**
+ * Los libros del lector están en Internet Archive, que no deja leer sus archivos desde otra
+ * página (CORS). El Worker los entrega con el permiso y en caché. Solo los de la lista
+ * (src/content/books.json): no es un acceso abierto a cualquier archivo.
+ */
+const BOOKS = new Set((books as { url: string }[]).map((b) => new URL(b.url).pathname));
+
+async function book(url: URL, req: Request): Promise<Response> {
+  const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Expose-Headers": "Content-Length" };
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: { ...cors, "Access-Control-Allow-Methods": "GET, HEAD" } });
+  if (!BOOKS.has(url.pathname)) return new Response("No encontrado", { status: 404, headers: cors });
+  const [, , id, file] = url.pathname.split("/");
+  const res = await fetch(`https://archive.org/download/${id}/${file}`, {
+    method: req.method === "HEAD" ? "HEAD" : "GET",
+    cf: { cacheEverything: true, cacheTtl: 60 * 60 * 24 * 30 },
+  } as RequestInit);
+  const headers = new Headers(cors);
+  headers.set("Content-Type", "application/pdf");
+  const len = res.headers.get("Content-Length");
+  if (len) headers.set("Content-Length", len);
+  headers.set("Cache-Control", "public, max-age=604800");
+  return new Response(res.body, { status: res.status, headers });
 }

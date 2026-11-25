@@ -135,3 +135,23 @@ Siguientes pasos sugeridos: diccionario y concordancia con fuentes con licencia,
 | Recordatorio de lectura | El botón de la campana abre Configuración → Recordatorios; en la app se elige la hora | E2E |
 
 **No resuelto:** Radio Ilumina no está en el directorio abierto y no se encontró su transmisión oficial; se puede agregar en Administración → Radios cuando se tenga la URL de la emisora.
+
+## 9. Segunda ronda de mejoras
+
+| Pedido | Qué se hizo | Verificación |
+|---|---|---|
+| Botón «regresar» | Cierra primero hojas, diálogos y reproductores (Android, navegador y PWA); pestañas y capítulos no acumulan historial | E2E |
+| Podcasts | Del episodio 1 al último | — |
+| Sermones | Un solo reproductor (el global); la cola son solo sermones | E2E |
+| Videos e Inicio | Videos retirado (sin contenido); Inicio sin pestañas que no cambiaban nada | E2E |
+| Cursos | «Material de estudio»: guía PDF de la lección y del curso, con enseñanza, preguntas y espacio para responder | E2E: PDF de 9 páginas |
+| Radio | Reproductor a pantalla completa: anterior/siguiente emisora, programación del día (la carga la administración; se marca lo que está al aire), lista para cambiar de emisora, favoritas, temporizador | E2E; `tests/radio-schedule.test.mjs` |
+| Planes | «Leer pasaje» abre el capítulo exacto con barra del plan (capítulo 1 de 3, siguiente, terminar el día y volver); la nota del día va a Mi diario | E2E; `tests/passage.test.mjs` (todos los pasajes de los planes se entienden) |
+| Buscador | El de arriba entiende «Juan 3:16» y busca en el texto bíblico con enlace al capítulo; en Biblia el buscador está al inicio | E2E |
+| Recordatorios | Hasta 3 horarios por persona (APK local; web por el Worker, que revisa cada hora) | `test:rules` 159 bien |
+| Libros | 15 libros evangélicos en español de dominio público (antes de 1915) de archive.org; el Worker entrega el PDF (archive.org no permite leerlo desde otra página) | Worker local: 404 fuera de la lista, CORS en la lista |
+| Voz natural | Voces neuronales Piper que corren en el teléfono (Claude MX Apache-2.0, Ald MX Unlicense, Davefx ES CC0), descarga única de ~63 MB y funcionan sin conexión | Probado: descarga y síntesis de un versículo en el navegador |
+| Asteriscos | La NTV trae asteriscos de notas al pie: se quitan del texto en pantalla, de la voz y al copiar; la voz respeta ¡ ¿ . , ; | `tests/voices.test.mjs` |
+| Barra de lectura | Barra fija abajo: escuchar y capítulo anterior/siguiente sin desplazarse | E2E |
+
+**Pendiente:** las emisoras de las listas enviadas que no están en el directorio abierto (sus páginas no publican la transmisión). Se agregan en Administración → Radios cuando se tenga la URL oficial.

@@ -50,10 +50,22 @@ export function chooseVoice(id: string | null) {
   cached = null;
 }
 
+/** Voces neuronales de Heseria ya descargadas en este teléfono (las más naturales). */
+export async function neuralInstalled(): Promise<Voice[]> {
+  const { installedVoices, NEURAL_VOICES } = await import("@/lib/neural-voice");
+  const have = await installedVoices();
+  return NEURAL_VOICES.filter((n) => have.includes(n.id)).map((n, index) => ({
+    id: `neural:${n.id}`, name: n.name, lang: n.id.slice(0, 5).replace("_", "-"), local: true, index: -1 - index, quality: 200,
+  }));
+}
+
 let cached: Promise<Voice | null> | null = null;
-/** La voz elegida por la persona o, si no eligió, la más natural disponible en español. */
+/** La voz elegida o, si no eligió, la más natural disponible (neuronal descargada primero). */
 export function currentVoice(): Promise<Voice | null> {
-  cached ??= listVoices().then((vs) => vs.find((v) => v.id === chosenVoiceId()) ?? vs[0] ?? null).catch(() => null);
+  cached ??= Promise.all([neuralInstalled(), listVoices()])
+    .then(([n, vs]) => [...n, ...vs])
+    .then((vs) => vs.find((v) => v.id === chosenVoiceId()) ?? vs[0] ?? null)
+    .catch(() => null);
   return cached;
 }
 
@@ -61,4 +73,17 @@ export function currentVoice(): Promise<Voice | null> {
 export function voiceLabel(v: Voice): string {
   const extra = !v.local ? " · alta calidad (red)" : "";
   return `${v.name.replace(/^Microsoft\s+/i, "")} (${v.lang})${extra}`;
+}
+
+/**
+ * Lo que se dice en voz alta: sin asteriscos ni marcas de notas (*, †, ¶, [a]…), que no son
+ * parte del texto. Se conservan ¡ ¿ y la puntuación, que dan las pausas y la entonación.
+ */
+export function cleanForSpeech(text: string): string {
+  return text
+    .replace(/\[[a-z0-9]{1,3}\]/gi, "") // llamadas de nota: [a], [12]
+    .replace(/[*†‡¶§#_~|<>{}\[\]\\/^]+/g, " ")
+    .replace(/\s+([,.;:!?»)])/g, "$1")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }

@@ -56,6 +56,7 @@ import { Capacitor } from "@capacitor/core";
 import { auth, db } from "@/services/firebase";
 import { liveChurch, nearbyFromOsm } from "@/lib/osm-churches";
 import { parseReference } from "@/lib/reference";
+import type { ScheduleItem } from "@/lib/radio-schedule";
 import { readingTimes } from "@/native";
 import {
   AppError, col, colorFor, compressImage, fold, friendly, handleFrom, iso, list, me, ms,
@@ -3618,6 +3619,8 @@ export interface RadioStation {
   status: "activa" | "pausada" | "retirada";
   verifiedAt: string | null;
   rights: string;
+  /** Programación (la carga la administración). */
+  schedule?: ScheduleItem[];
 }
 
 function toRadio(d: DocumentSnapshot<DocumentData>): RadioStation | null {
@@ -3628,6 +3631,7 @@ function toRadio(d: DocumentSnapshot<DocumentData>): RadioStation | null {
     region: x.region ?? "", language: x.language ?? "Español", categories: x.categories ?? [], site: x.site ?? "",
     source: x.source ?? "", streamUrl: x.streamUrl, status: x.status ?? "activa",
     verifiedAt: x.verifiedAt ? iso(x.verifiedAt) : null, rights: x.rights ?? "",
+    schedule: Array.isArray(x.schedule) ? x.schedule : [],
   };
 }
 

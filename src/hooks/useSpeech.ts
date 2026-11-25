@@ -8,13 +8,22 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Capacitor } from "@capacitor/core";
-import { currentVoice } from "@/lib/voices";
+import { cleanForSpeech, currentVoice } from "@/lib/voices";
+import { prepare, speakNeural, stopNeural } from "@/lib/neural-voice";
 
 type State = "idle" | "playing" | "paused";
 const RATES = [0.75, 1, 1.25, 1.5] as const;
 
-export async function speakOne(text: string, rate: number): Promise<void> {
+export async function speakOne(raw: string, rate: number, rawNext?: string): Promise<void> {
+  const text = cleanForSpeech(raw);
+  const next = rawNext && cleanForSpeech(rawNext);
+  if (!text) return;
   const voice = await currentVoice();
+  if (voice?.id.startsWith("neural:")) {
+    const id = voice.id.slice(7);
+    if (next) void prepare(next, id).catch(() => undefined); // el siguiente, mientras suena este
+    return speakNeural(text, id, rate);
+  }
   if (Capacitor.isNativePlatform()) {
     const { TextToSpeech } = await import("@capacitor-community/text-to-speech");
     await TextToSpeech.speak({ text, lang: voice?.lang ?? "es-US", rate, category: "playback", ...(voice ? { voice: voice.index } : {}) });
@@ -33,6 +42,7 @@ export async function speakOne(text: string, rate: number): Promise<void> {
 }
 
 export async function stopAll() {
+  stopNeural();
   if (Capacitor.isNativePlatform()) {
     const { TextToSpeech } = await import("@capacitor-community/text-to-speech");
     await TextToSpeech.stop().catch(() => undefined);
@@ -59,7 +69,7 @@ export function useSpeech(parts: string[]) {
         setIndex(i);
         if (!parts[i]?.trim()) continue;
         try {
-          await speakOne(parts[i], rate);
+          await speakOne(parts[i], rate, parts[i + 1]);
         } catch (e) {
           if (run.current !== id) return;
           setError(e instanceof Error && e.message ? `No se pudo leer en voz alta (${e.message}).` : "No se pudo leer en voz alta.");

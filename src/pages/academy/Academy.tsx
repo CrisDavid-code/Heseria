@@ -17,7 +17,10 @@ import { FileLibrary } from "@/components/files/Files";
 import { useSession } from "@/store";
 import { useAsync } from "@/hooks/useAsync";
 import { usePageMeta } from "@/hooks/usePageMeta";
-import { haptic } from "@/native";
+import { haptic, saveFile } from "@/native";
+import { studyGuide } from "@/lib/study-guide";
+import { bibleBooks } from "@/store/directory";
+import type { Course } from "@/types";
 import { bibleService, courseService } from "@/services";
 import type { Lesson } from "@/types";
 import { useScreen } from "@/store/screen";
@@ -602,6 +605,8 @@ export function CourseLearn() {
         </Button>
       </div>
 
+      <GuideDownloads course={c} lesson={current} />
+
       {/*
         Material de la lección: lo publica quien enseña y solo lo baja quien
         está matriculado. Cada lección tiene el suyo, así que la lista cambia
@@ -703,5 +708,35 @@ export function CourseLearn() {
         </BottomSheetContent>
       </BottomSheet>
     </div>
+  );
+}
+
+/** Guías de estudio en PDF de la lección y del curso (hechas con su contenido). */
+function GuideDownloads({ course, lesson }: { course: Course; lesson: Lesson }) {
+  const [busy, setBusy] = useState<"leccion" | "curso" | null>(null);
+  const names = Object.fromEntries(bibleBooks.map((b) => [b.id, b.name]));
+  async function download(kind: "leccion" | "curso") {
+    setBusy(kind);
+    try {
+      const blob = await studyGuide(course, names, kind === "leccion" ? lesson : undefined);
+      const name = `${course.id}${kind === "leccion" ? `-${lesson.id}` : ""}-guia.pdf`;
+      const r = await saveFile(blob, name);
+      if (r.where === "failed") throw new Error();
+      toast.success(r.where === "device" ? "Guía guardada en tu teléfono" : "Guía descargada");
+    } catch {
+      toast.error("No se pudo crear la guía.");
+    } finally {
+      setBusy(null);
+    }
+  }
+  return (
+    <section className="rounded-2xl border border-border p-4">
+      <h2 className="text-sm font-semibold">Material de estudio</h2>
+      <p className="mt-1 text-xs text-muted-foreground">Guías en PDF con la enseñanza, el pasaje, las preguntas y espacio para tus respuestas.</p>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <Button size="sm" variant="outline" loading={busy === "leccion"} onClick={() => void download("leccion")}>Guía de esta lección</Button>
+        <Button size="sm" variant="outline" loading={busy === "curso"} onClick={() => void download("curso")}>Guía del curso completo</Button>
+      </div>
+    </section>
   );
 }

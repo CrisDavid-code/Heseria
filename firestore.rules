@@ -439,7 +439,8 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isAdmin()
         && data().keys().hasOnly(['name', 'description', 'logo', 'country', 'region', 'language', 'categories',
-                                  'site', 'source', 'streamUrl', 'status', 'verifiedAt', 'rights', 'updatedAt'])
+                                  'site', 'source', 'streamUrl', 'status', 'verifiedAt', 'rights', 'schedule', 'updatedAt'])
+        && (!('schedule' in data()) || (data().schedule is list && data().schedule.size() <= 60))
         && str(data().name, 1, 120) && data().streamUrl.matches('https://[^ ]{4,500}')
         && data().status in ['activa', 'pausada', 'retirada'];
       allow delete: if isAdmin();
