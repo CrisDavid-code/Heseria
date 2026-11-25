@@ -15,9 +15,9 @@ import { VoiceSettings } from "@/components/settings/VoiceSettings";
 import { isLocale, LOCALES, useT } from "@/i18n";
 import { useAsync } from "@/hooks/useAsync";
 import { usePageMeta } from "@/hooks/usePageMeta";
-import { dailyVerseTime, isNative, openExternal, platform, saveFile, scheduleDailyVerse } from "@/native";
+import { isNative, openExternal, platform, readingTimes, saveFile, scheduleDailyVerse, setReadingTimes } from "@/native";
 import {
-  accountProviders, authService, disableWebPush, enableWebPush, exportMyData, libraryService,
+  accountProviders, authService, disableWebPush, enableWebPush, exportMyData, libraryService, updateWebPushTimes,
 } from "@/services";
 import { preferencesStore, usePreferences, useSession, useTheme, type ThemeMode } from "@/store";
 import { useScreen } from "@/store/screen";
@@ -52,7 +52,15 @@ export default function Settings() {
   const [params] = useSearchParams();
   // /settings?abrir=notificaciones abre directo esa sección (desde la campana).
   const [open, setOpen] = useState<SectionId | null>(() => (params.get("abrir") as SectionId | null) ?? null);
-  const [dailyTime, setDailyTime] = useState(dailyVerseTime);
+  const [times, setTimes] = useState(readingTimes);
+  /** Guarda los horarios y reprograma: avisos del teléfono (APK) o del servidor (web). */
+  async function saveTimes(next: string[]) {
+    const clean = setReadingTimes(next);
+    setTimes(clean);
+    const ok = isNative() ? await scheduleDailyVerse(true, clean) : await updateWebPushTimes(clean).then(() => true, () => false);
+    if (ok) toast.success(`Te recordaremos a las ${clean.join(", ")}`);
+    else toast.error("No se pudieron guardar los horarios.");
+  }
   const [busy, setBusy] = useState(false);
 
   // Cuenta
@@ -341,7 +349,7 @@ export default function Settings() {
           </SettingRow>
           <SettingRow
             title="Recordatorio de lectura"
-            description={isNative() ? `Cada día a las ${dailyTime}, con el versículo del día.` : "Cada mañana a las 7:00, con el versículo del día."}
+            description={`Cada día a las ${times.join(", ")}, con el versículo del día.`}
           >
             <Switch
               checked={daily}
@@ -351,7 +359,7 @@ export default function Settings() {
                   const problem = v ? await enableWebPush() : (await disableWebPush(), null);
                   if (problem) return void toast.info(problem);
                   setDaily(v);
-                  toast.success(v ? "Recibirás el versículo cada mañana" : "Aviso desactivado");
+                  toast.success(v ? `Recibirás el versículo a las ${times.join(", ")}` : "Aviso desactivado");
                   return;
                 }
                 const ok = await scheduleDailyVerse(v);
@@ -363,25 +371,34 @@ export default function Settings() {
                 }
                 setDaily(v);
                 localStorage.setItem("heseria.dailyVerse", v ? "1" : "0");
-                toast.success(v ? "Te recordaremos cada mañana" : "Recordatorio desactivado");
+                toast.success(v ? `Te recordaremos a las ${times.join(", ")}` : "Recordatorio desactivado");
               }}
             />
           </SettingRow>
-          {isNative() && daily && (
-            <SettingRow title="Hora del recordatorio" description="Elige cuándo quieres leer.">
-              <input
-                type="time"
-                aria-label="Hora del recordatorio"
-                value={dailyTime}
-                className="rounded-lg border border-border bg-surface px-2 py-1 text-sm"
-                onChange={async (e) => {
-                  const t = e.target.value || "07:00";
-                  setDailyTime(t);
-                  localStorage.setItem("heseria.dailyTime", t);
-                  if (await scheduleDailyVerse(true, t)) toast.success(`Te recordaremos a las ${t}`);
-                }}
-              />
-            </SettingRow>
+          {daily && (
+            <div className="mt-2 space-y-2 rounded-2xl border border-border p-3">
+              <p className="text-sm font-medium">Tus horarios de lectura</p>
+              {times.map((t, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <input
+                    type="time"
+                    aria-label={`Horario ${i + 1}`}
+                    value={t}
+                    className="flex-1 rounded-lg border border-border bg-surface px-2 py-1.5 text-sm"
+                    onChange={(e) => void saveTimes(times.map((x, j) => (j === i ? e.target.value || x : x)))}
+                  />
+                  {times.length > 1 && (
+                    <Button size="sm" variant="ghost" onClick={() => void saveTimes(times.filter((_, j) => j !== i))}>Quitar</Button>
+                  )}
+                </div>
+              ))}
+              {times.length < 3 && (
+                <Button size="sm" variant="outline" onClick={() => void saveTimes([...times, times.includes("20:00") ? "12:00" : "20:00"])}>
+                  Agregar otro horario
+                </Button>
+              )}
+              {!isNative() && <p className="text-xs text-muted-foreground">En la web el aviso llega a la hora en punto más cercana.</p>}
+            </div>
           )}
           <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
             Los mensajes, las oraciones y los anuncios llegan a la campana de la app mientras la

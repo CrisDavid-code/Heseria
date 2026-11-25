@@ -43,6 +43,8 @@ await put("devotionals", read("devotionals"));
 await put("courses", read("courses"));
 // Sermones con licencia libre (scripts/sermones-libres.mjs): el audio queda en archive.org.
 await put("content", read("sermons"));
+// Libros de dominio público para el lector (el PDF lo entrega el Worker /libro/).
+await put("books", read("books"));
 
 let failed = 0;
 for (const url of read("podcasts")) {

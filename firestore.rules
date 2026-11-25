@@ -427,8 +427,9 @@ service cloud.firestore {
     // Cada quien registra o borra solo el suyo; nadie los lee desde la app.
     match /pushTokens/{token} {
       allow create, update: if signedIn() && token.size() <= 400
-        && data().keys().hasOnly(['uid', 'platform', 'updatedAt'])
-        && data().uid == uid() && str(data().platform, 1, 20) && nowish(data().updatedAt);
+        && data().keys().hasOnly(['uid', 'platform', 'hours', 'updatedAt'])
+        && data().uid == uid() && str(data().platform, 1, 20) && nowish(data().updatedAt)
+        && (!('hours' in data()) || (data().hours is list && data().hours.size() <= 3));
       allow delete: if signedIn() && resource.data.uid == uid();
     }
 
@@ -438,7 +439,8 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isAdmin()
         && data().keys().hasOnly(['name', 'description', 'logo', 'country', 'region', 'language', 'categories',
-                                  'site', 'source', 'streamUrl', 'status', 'verifiedAt', 'rights', 'updatedAt'])
+                                  'site', 'source', 'streamUrl', 'status', 'verifiedAt', 'rights', 'schedule', 'updatedAt'])
+        && (!('schedule' in data()) || (data().schedule is list && data().schedule.size() <= 60))
         && str(data().name, 1, 120) && data().streamUrl.matches('https://[^ ]{4,500}')
         && data().status in ['activa', 'pausada', 'retirada'];
       allow delete: if isAdmin();

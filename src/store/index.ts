@@ -296,11 +296,9 @@ export function usePlayer() {
       if (tracks?.length) playerStore.set({ queue: tracks, index, positionSec: 0, playing: true });
       else playerStore.set({ playing: true });
     },
+    /** Reproduce una sola pista: la cola queda solo con ella (no se mezcla con lo anterior). */
     playTrack(t: PlayerTrack) {
-      const queue = playerStore.get().queue;
-      const existing = queue.findIndex((x) => x.id === t.id);
-      if (existing >= 0) playerStore.set({ index: existing, positionSec: 0, playing: true });
-      else playerStore.set({ queue: [t, ...queue], index: 0, positionSec: 0, playing: true });
+      playerStore.set({ queue: [t], index: 0, positionSec: 0, playing: true });
     },
     toggle() {
       playerStore.set({ playing: !playerStore.get().playing });

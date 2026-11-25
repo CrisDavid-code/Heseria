@@ -48,7 +48,12 @@ export function book(version: string, bookId: string): Promise<Record<string, st
   const key = `${v}/${bookId}`;
   let hit = cache.get(key);
   if (!hit) {
-    hit = getJson<Record<string, string[]>>(`${v}/${bookId}.json`);
+    // Los asteriscos de algunas versiones (NTV) marcan notas al pie que la app no trae:
+    // se quitan del texto para que no se vean, no se lean en voz alta ni se copien.
+    hit = getJson<Record<string, string[]>>(`${v}/${bookId}.json`).then((b) => {
+      for (const ch of Object.keys(b)) b[ch] = b[ch].map((t) => (t.includes("*") ? t.replace(/\s*\*+/g, "").replace(/\s{2,}/g, " ") : t));
+      return b;
+    });
     // Si falla, se olvida para poder reintentar con red.
     hit.catch(() => cache.delete(key));
     cache.set(key, hit);

@@ -55,6 +55,9 @@ import {
 import { Capacitor } from "@capacitor/core";
 import { auth, db } from "@/services/firebase";
 import { liveChurch, nearbyFromOsm } from "@/lib/osm-churches";
+import { parseReference } from "@/lib/reference";
+import type { ScheduleItem } from "@/lib/radio-schedule";
+import { readingTimes } from "@/native";
 import {
   AppError, col, colorFor, compressImage, fold, friendly, handleFrom, iso, list, me, ms,
   myIdOrNull, one, ref,
@@ -2603,9 +2606,31 @@ export const searchService: SearchService = {
         musicService.songs().catch(() => []),
         videoService.list().catch(() => []),
         sermonService.list().catch(() => []),
-        needle.length >= 3 ? bible.search(q, 8).catch(() => []) : Promise.resolve([]),
+        needle.length >= 3 ? bible.search(q, 25).catch(() => []) : Promise.resolve([]),
       ]);
+      // «Juan 3:16», «salmo 23», «apoc 21»: primero, ir directo al pasaje.
+      const books = await bible.books().catch(() => []);
+      const ref = parseReference(q, books);
+      const jump: SearchResult[] = [];
+      if (ref) {
+        const text = ref.verse ? await bible.verseText(ref.book.id, ref.chapter, ref.verse).catch(() => "") : "";
+        jump.push({
+          id: `ref-${ref.book.id}-${ref.chapter}-${ref.verse ?? 0}`,
+          title: `${ref.book.name} ${ref.chapter}${ref.verse ? `:${ref.verse}` : ""}`,
+          subtitle: text || "Abrir el capítulo",
+          type: "Versículo", href: `/bible/${ref.book.id}/${ref.chapter}`, color: colorFor(ref.book.id),
+        });
+      }
+      const verseHref = (r: string) => {
+        const m = /^(.*\D)\s(\d+):(\d+)$/.exec(r);
+        const b = m && parseReference(`${m[1]} ${m[2]}`, books);
+        return b ? `/bible/${b.book.id}/${b.chapter}` : "/bible";
+      };
       const out: SearchResult[] = [
+        ...jump,
+        ...verses.map((v, i) => ({
+          id: `v${i}`, title: v.ref, subtitle: v.text.slice(0, 120), type: "Versículo",
+          href: verseHref(v.ref), color: colorFor(v.ref) })),
         ...churches.filter((c) => hit(`${c.name} ${c.city}`)).slice(0, 6).map((c) => ({
           id: c.id, title: c.name, subtitle: `${c.denomination} · ${c.city}`, type: "Iglesia", href: `/churches/${c.id}`, color: c.color })),
         ...courses.filter((c) => hit(c.title)).map((c) => ({
@@ -2620,11 +2645,8 @@ export const searchService: SearchService = {
           id: v.id, title: v.title, subtitle: v.category, type: "Video", href: `/content/${v.id}`, color: v.color })),
         ...sermons.filter((s) => hit(s.title)).map((s) => ({
           id: s.id, title: s.title, subtitle: s.passage, type: "Sermón", href: `/content/${s.id}`, color: s.color })),
-        ...verses.map((v, i) => ({
-          id: `v${i}`, title: v.ref, subtitle: v.text.slice(0, 90), type: "Versículo",
-          href: `/bible`, color: colorFor(v.ref) })),
       ];
-      return out.slice(0, 40);
+      return out.slice(0, 60);
     }),
   suggestions: async () => ["Salmos", "Juan 3:16", "Oración", "Gracia", "Fe", "Esperanza", "Iglesias cerca"],
 };
@@ -3413,9 +3435,24 @@ export async function enableWebPush(ask = true): Promise<string | null> {
   if (permission !== "granted") return "Permite las notificaciones de Heseria en tu navegador.";
   const token = await getToken(getMessaging(auth.app), { serviceWorkerRegistration: await navigator.serviceWorker.ready });
   if (!token) return "No se pudo registrar este dispositivo.";
-  await setDoc(ref("pushTokens", token), { uid: me(), platform: "web", updatedAt: serverTimestamp() });
+  await setDoc(ref("pushTokens", token), { uid: me(), platform: "web", hours: utcHours(readingTimes()), updatedAt: serverTimestamp() });
   localStorage.setItem("heseria.pushToken", token);
   return null;
+}
+
+/** Horas UTC en que el servidor manda el aviso (el Worker revisa cada hora). */
+export function utcHours(times: string[]): number[] {
+  const now = new Date();
+  return [...new Set(times.map((t) => {
+    const [h, m] = t.split(":").map(Number);
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate(), h || 0, m || 0).getUTCHours();
+  }))].slice(0, 3);
+}
+
+/** Actualiza los horarios del aviso web de este dispositivo (si está activado). */
+export async function updateWebPushTimes(times: string[]): Promise<void> {
+  const token = localStorage.getItem("heseria.pushToken");
+  if (token) await setDoc(ref("pushTokens", token), { uid: me(), platform: "web", hours: utcHours(times), updatedAt: serverTimestamp() });
 }
 
 export async function disableWebPush(): Promise<void> {
@@ -3582,6 +3619,8 @@ export interface RadioStation {
   status: "activa" | "pausada" | "retirada";
   verifiedAt: string | null;
   rights: string;
+  /** Programación (la carga la administración). */
+  schedule?: ScheduleItem[];
 }
 
 function toRadio(d: DocumentSnapshot<DocumentData>): RadioStation | null {
@@ -3592,6 +3631,7 @@ function toRadio(d: DocumentSnapshot<DocumentData>): RadioStation | null {
     region: x.region ?? "", language: x.language ?? "Español", categories: x.categories ?? [], site: x.site ?? "",
     source: x.source ?? "", streamUrl: x.streamUrl, status: x.status ?? "activa",
     verifiedAt: x.verifiedAt ? iso(x.verifiedAt) : null, rights: x.rights ?? "",
+    schedule: Array.isArray(x.schedule) ? x.schedule : [],
   };
 }
 

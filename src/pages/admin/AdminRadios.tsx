@@ -19,11 +19,12 @@ import { playRadio, stopRadio, useRadio } from "@/lib/radio";
 import { radioService, type RadioStation } from "@/services";
 import { useScreen } from "@/store/screen";
 import { formatDate } from "@/lib/utils";
+import { parseSchedule, scheduleText } from "@/lib/radio-schedule";
 
-type Draft = Omit<RadioStation, "id" | "verifiedAt" | "categories"> & { id?: string; categories: string; verified: boolean };
+type Draft = Omit<RadioStation, "id" | "verifiedAt" | "categories" | "schedule"> & { id?: string; categories: string; verified: boolean; scheduleText: string };
 const EMPTY: Draft = {
   name: "", description: "", logo: "", country: "Guatemala", region: "", language: "Español", categories: "",
-  site: "", source: "", streamUrl: "", status: "pausada", rights: "", verified: false,
+  site: "", source: "", streamUrl: "", status: "pausada", rights: "", verified: false, scheduleText: "",
 };
 
 export default function AdminRadios() {
@@ -42,8 +43,8 @@ export default function AdminRadios() {
     if (draft.status === "activa" && !draft.verified) return void toast.error("Para publicarla, confirma que la probaste y que hay permiso.");
     setBusy(true);
     try {
-      const { categories, ...rest } = draft;
-      await radioService.save({ ...rest, categories: categories.split(",").map((c) => c.trim()) });
+      const { categories, scheduleText: sched, ...rest } = draft;
+      await radioService.save({ ...rest, categories: categories.split(",").map((c) => c.trim()), schedule: parseSchedule(sched) });
       toast.success("Emisora guardada");
       stopRadio();
       setDraft(null);
@@ -91,7 +92,7 @@ export default function AdminRadios() {
                 {s.country} · {s.verifiedAt ? `verificada ${formatDate(s.verifiedAt)}` : "sin verificar"}
               </p>
               <div className="mt-2 flex gap-2">
-                <Button size="sm" variant="outline" onClick={() => setDraft({ ...s, categories: s.categories.join(", "), verified: false })}>
+                <Button size="sm" variant="outline" onClick={() => setDraft({ ...s, categories: s.categories.join(", "), verified: false, scheduleText: scheduleText(s.schedule) })}>
                   <Pencil className="size-3.5" /> Editar
                 </Button>
                 <Button
@@ -140,6 +141,18 @@ export default function AdminRadios() {
                 {field("categories", "Categorías (coma)")}
               </div>
               {field("rights", "Derechos / condiciones de uso", { placeholder: "p. ej. permiso escrito de la emisora" })}
+              <Field label="Programación (una línea por programa)" htmlFor="r-sched">
+                <Textarea
+                  id="r-sched"
+                  className="min-h-28 font-mono text-xs"
+                  value={draft.scheduleText}
+                  placeholder={"L-V 06:00-09:00 Amanecer con Dios\nS 10:00-12:00 Alabanza\nDiario 21:00-23:00 Oración"}
+                  onChange={(e) => setDraft({ ...draft, scheduleText: e.target.value })}
+                />
+              </Field>
+              <p className="text-xs text-muted-foreground">
+                {parseSchedule(draft.scheduleText).length} programas reconocidos. Días: L M X J V S D, en rango (L-V) o «Diario».
+              </p>
               <Field label="Estado" htmlFor="r-status">
                 <SimpleSelect
                   value={draft.status}

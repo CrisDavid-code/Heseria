@@ -14,9 +14,13 @@ interface RadioState {
   station: RadioStation | null;
   status: RadioStatus;
   sleepAt: number | null;
+  /** Emisoras de la lista desde la que se eligió (para anterior/siguiente). */
+  list: RadioStation[];
+  /** Reproductor a pantalla completa abierto. */
+  expanded: boolean;
 }
 
-let state: RadioState = { station: null, status: "detenida", sleepAt: null };
+let state: RadioState = { station: null, status: "detenida", sleepAt: null, list: [], expanded: false };
 const listeners = new Set<() => void>();
 const set = (patch: Partial<RadioState>) => {
   state = { ...state, ...patch };
@@ -62,7 +66,8 @@ function ensureAudio() {
   return audio;
 }
 
-export function playRadio(station: RadioStation) {
+export function playRadio(station: RadioStation, list?: RadioStation[]) {
+  if (list?.length) set({ list });
   const a = ensureAudio();
   playerStore.set({ playing: false });
   window.clearTimeout(retryTimer);
@@ -79,9 +84,23 @@ export function playRadio(station: RadioStation) {
     navigator.mediaSession.setActionHandler("pause", () => stopRadio());
     navigator.mediaSession.setActionHandler("stop", () => stopRadio());
     navigator.mediaSession.setActionHandler("play", () => state.station && playRadio(state.station));
+    try {
+      navigator.mediaSession.setActionHandler("nexttrack", () => stepRadio(1));
+      navigator.mediaSession.setActionHandler("previoustrack", () => stepRadio(-1));
+    } catch { /* acción no disponible */ }
   }
   return a;
 }
+
+/** Emisora anterior (-1) o siguiente (+1) de la lista. */
+export function stepRadio(dir: 1 | -1) {
+  const { list, station } = state;
+  if (!list.length || !station) return;
+  const i = list.findIndex((s) => s.id === station.id);
+  playRadio(list[(i + dir + list.length) % list.length]);
+}
+
+export const setRadioExpanded = (expanded: boolean) => set({ expanded });
 
 export function stopRadio() {
   window.clearTimeout(retryTimer);

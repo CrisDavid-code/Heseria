@@ -608,36 +608,57 @@ const DAILY_VERSE_DAYS = 60;
  * (sin servidor ni conexión): uno por día para los próximos 60 días, y se
  * renueva cada vez que se abre la app, así nunca se acaba.
  */
-/** Hora del aviso diario («HH:MM»), elegida en Configuración → Recordatorios. */
-export function dailyVerseTime(): string {
-  try { return localStorage.getItem("heseria.dailyTime") || "07:00"; } catch { return "07:00"; }
+/** Horarios del recordatorio de lectura («HH:MM», hasta 3), elegidos por cada persona. */
+export function readingTimes(): string[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem("heseria.reminders") ?? "null") as string[] | null;
+    if (Array.isArray(raw) && raw.length) return raw.filter((t) => /^\d{2}:\d{2}$/.test(t)).slice(0, 3);
+    return [localStorage.getItem("heseria.dailyTime") || "07:00"]; // valor anterior, si lo había
+  } catch {
+    return ["07:00"];
+  }
+}
+export function setReadingTimes(times: string[]) {
+  const clean = [...new Set(times.filter((t) => /^\d{2}:\d{2}$/.test(t)))].sort().slice(0, 3);
+  try { localStorage.setItem("heseria.reminders", JSON.stringify(clean)); } catch { /* sin almacenamiento */ }
+  return clean;
 }
 
-export async function scheduleDailyVerse(enabled: boolean, time = dailyVerseTime()): Promise<boolean> {
-  const [hour, minute] = time.split(":").map(Number);
+const MAX_TIMES = 3;
+const DAYS_AHEAD = 20; // 3 horarios × 20 días = 60 avisos (por debajo del límite de iOS)
+
+/**
+ * Recordatorio de lectura con el versículo del día, en cada horario elegido. Lo programa el
+ * propio teléfono (sin servidor ni conexión) y se renueva cada vez que se abre la app.
+ */
+export async function scheduleDailyVerse(enabled: boolean, times = readingTimes()): Promise<boolean> {
   if (!(await prepareLocal())) return false;
   try {
     const { LocalNotifications } = await import("@capacitor/local-notifications");
-    const ids = Array.from({ length: DAILY_VERSE_DAYS }, (_, i) => ({ id: DAILY_VERSE_ID + i }));
+    // Se cancelan los del esquema anterior (60 días) y los actuales.
+    const ids = Array.from({ length: 60 + MAX_TIMES * DAYS_AHEAD }, (_, i) => ({ id: DAILY_VERSE_ID + i }));
     await LocalNotifications.cancel({ notifications: ids });
     if (!enabled) return true;
     const { verseOfTheDay } = await import("@/services/bible");
     const now = new Date();
     const notifications = [];
-    for (let i = 0; i < DAILY_VERSE_DAYS; i++) {
-      const at = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i, hour || 0, minute || 0);
-      if (at <= now) continue;
-      const v = await verseOfTheDay(at);
-      notifications.push({
-        id: DAILY_VERSE_ID + i,
-        title: `Versículo del día · ${v.ref}`,
-        body: v.text,
-        largeBody: v.text,
-        channelId: "heseria",
-        smallIcon: "ic_stat_notify",
-        schedule: { at, allowWhileIdle: true },
-        extra: { href: `/bible/${v.book}/${v.chapter}` },
-      });
+    for (const [k, time] of times.slice(0, MAX_TIMES).entries()) {
+      const [hour, minute] = time.split(":").map(Number);
+      for (let i = 0; i < DAYS_AHEAD; i++) {
+        const at = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i, hour || 0, minute || 0);
+        if (at <= now) continue;
+        const v = await verseOfTheDay(at);
+        notifications.push({
+          id: DAILY_VERSE_ID + 60 + k * DAYS_AHEAD + i,
+          title: k === 0 ? `Versículo del día · ${v.ref}` : `Es hora de leer · ${v.ref}`,
+          body: v.text,
+          largeBody: v.text,
+          channelId: "heseria",
+          smallIcon: "ic_stat_notify",
+          schedule: { at, allowWhileIdle: true },
+          extra: { href: `/bible/${v.book}/${v.chapter}` },
+        });
+      }
     }
     await LocalNotifications.schedule({ notifications });
     return true;

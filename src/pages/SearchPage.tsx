@@ -29,7 +29,7 @@ function writeRecent(list: string[]) {
 
 const FILTERS = [
   "Todo", "Persona", "Iglesia", "Sermón",
-  "Podcast", "Video", "Curso", "Grupo", "Evento", "Ministerio", "Biblia",
+  "Podcast", "Curso", "Grupo", "Evento", "Ministerio", "Versículo", "Devocional", "Plan",
 ];
 
 export default function SearchPage() {
@@ -85,7 +85,7 @@ export default function SearchPage() {
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Busca en todo Heseria"
+          placeholder="Busca un versículo (Juan 3:16), una palabra, sermones…"
           aria-label="Buscar"
           autoFocus
           enterKeyHint="search"

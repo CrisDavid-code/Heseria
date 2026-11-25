@@ -9,6 +9,7 @@ compatibility_date = "2026-09-01"
 SITE = "https://heseria.web.app"
 DATABASE = "(default)"
 
-# 13:00 UTC = 7:00 en Guatemala, la misma hora que el aviso local del APK.
+# Cada hora: envía a quienes eligieron esa hora (Configuración → Recordatorios).
+# 13:00 UTC = 7:00 en Guatemala para los dispositivos sin horario elegido.
 [triggers]
-crons = ["0 13 * * *"]
+crons = ["0 * * * *"]

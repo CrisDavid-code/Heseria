@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/primitives";
 import { RadioNowPlaying } from "@/components/media/RadioBar";
 import { useAsync } from "@/hooks/useAsync";
 import { usePageMeta } from "@/hooks/usePageMeta";
-import { playRadio, radioFavorites, radioHistory, toggleRadioFavorite, useRadio } from "@/lib/radio";
+import { playRadio, radioFavorites, radioHistory, setRadioExpanded, toggleRadioFavorite, useRadio } from "@/lib/radio";
 import { radioService, type RadioStation } from "@/services";
 import { useScreen } from "@/store/screen";
 import { cn } from "@/lib/utils";
@@ -72,7 +72,7 @@ export default function Radio() {
     const live = radio.station?.id === s.id && radio.status !== "detenida";
     return (
       <li key={s.id} className={cn("flex items-center gap-3 rounded-2xl border p-3", live ? "border-primary bg-primary/5" : "border-border")}>
-        <button type="button" onClick={() => playRadio(s)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+        <button type="button" onClick={() => { playRadio(s, [...shown, ...extra.filter((x) => !shown.includes(x))]); setRadioExpanded(true); }} className="flex min-w-0 flex-1 items-center gap-3 text-left">
           {s.logo ? (
             <img
               src={s.logo}
@@ -149,7 +149,7 @@ export default function Radio() {
               <h2 className="mb-2 text-section font-semibold">Escuchadas recientemente</h2>
               <div className="flex gap-2 overflow-x-auto pb-1">
                 {recent.map((s) => (
-                  <button key={s.id} type="button" onClick={() => playRadio(s)} className="shrink-0 rounded-full border border-border px-3 py-1.5 text-sm">
+                  <button key={s.id} type="button" onClick={() => { playRadio(s, [...shown, ...extra.filter((x) => !shown.includes(x))]); setRadioExpanded(true); }} className="shrink-0 rounded-full border border-border px-3 py-1.5 text-sm">
                     {s.name}
                   </button>
                 ))}

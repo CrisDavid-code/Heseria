@@ -37,12 +37,8 @@ export const TABS: TabDef[] = [
     href: "/home",
     icon: Home,
     match: ["/home", "/notifications", "/profile", "/settings"],
-    sections: [
-      { label: "Para ti", href: "/home" },
-      { label: "Continuar viendo", href: "/home?vista=viendo" },
-      { label: "Continuar escuchando", href: "/home?vista=escuchando" },
-      { label: "Recomendaciones", href: "/home?vista=recomendaciones" },
-    ],
+    // Inicio es una sola pantalla: sin pestañas que no cambiaban nada.
+    sections: [],
   },
   {
     id: "explorar",
@@ -51,7 +47,7 @@ export const TABS: TabDef[] = [
     href: "/explore",
     icon: Compass,
     match: [
-      "/explore", "/search", "/radio", "/podcasts", "/sermons", "/videos", "/academy", "/courses",
+      "/explore", "/search", "/radio", "/podcasts", "/sermons", "/academy", "/courses",
     ],
     // Cada opción vive en una sola pestaña: iglesias, eventos y ministerios están en Comunidad.
     sections: [
@@ -59,7 +55,6 @@ export const TABS: TabDef[] = [
       { label: "Radio", href: "/radio" },
       { label: "Podcasts", href: "/podcasts" },
       { label: "Sermones", href: "/sermons" },
-      { label: "Videos", href: "/videos" },
       { label: "Cursos", href: "/academy" },
     ],
   },
@@ -107,7 +102,6 @@ export const TABS: TabDef[] = [
     sections: [
       { label: "Guardados", href: "/library?tab=guardados" },
       { label: "Lector", href: "/lector" },
-      { label: "Videos", href: "/library?tab=videos" },
       { label: "Cursos", href: "/library?tab=cursos" },
       { label: "Historial", href: "/library?tab=historial" },
       { label: "Descargas", href: "/library?tab=descargas" },
@@ -188,7 +182,6 @@ export const EXPLORE_CATEGORIES: { label: string; href: string; icon: LucideIcon
   { label: "Radio en vivo", href: "/radio", icon: Radio, gradient: "from-rose-400/70 to-purple-800/70" },
   { label: "Podcasts", href: "/podcasts", icon: Mic2, gradient: "from-amber-400/70 to-orange-700/70" },
   { label: "Sermones", href: "/sermons", icon: Clapperboard, gradient: "from-teal-400/70 to-emerald-700/70" },
-  { label: "Videos", href: "/videos", icon: Video, gradient: "from-sky-400/70 to-indigo-800/70" },
   { label: "Cursos", href: "/academy", icon: GraduationCap, gradient: "from-lime-400/70 to-teal-800/70" },
   { label: "Iglesias", href: "/churches", icon: Church, gradient: "from-cyan-500/70 to-blue-700/70" },
   { label: "Ministerios", href: "/ministries", icon: HeartHandshake, gradient: "from-teal-400/70 to-emerald-700/70" },

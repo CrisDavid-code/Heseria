@@ -8,7 +8,7 @@ import { AppHeader } from "@/components/layout/AppHeader";
 import { BottomTabs } from "@/components/layout/BottomTabs";
 import { MiniPlayer, usePlayerClock } from "@/components/layout/Player";
 import { closeTop } from "@/lib/back-stack";
-import { RadioBar } from "@/components/media/RadioBar";
+import { RadioBar, RadioFullPlayer } from "@/components/media/RadioBar";
 import { OfflineState } from "@/components/states";
 import { TooltipProvider } from "@/components/ui/overlays";
 import {
@@ -194,6 +194,7 @@ export function AppShell() {
         {!screen.immersive && (
           <>
             <RadioBar />
+            <RadioFullPlayer />
             <MiniPlayer />
             <BottomTabs />
           </>

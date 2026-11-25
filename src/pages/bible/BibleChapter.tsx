@@ -1,10 +1,11 @@
 import {
   BarChart3, Bookmark, Brain, ChevronLeft, ChevronRight, Columns2, Copy, Minus, NotebookPen, Plus,
-  Share2, Sun, Type, Volume2, X,
+  Pause, Play, Share2, Sun, Type, Volume2, X,
 } from "lucide-react";
 import { SpeechBar } from "@/components/bible/SpeechBar";
-import { useSpeech } from "@/hooks/useSpeech";
+import { speechSupported, useSpeech } from "@/hooks/useSpeech";
 import { ReadingMusic } from "@/components/bible/ReadingMusic";
+import { PlanBar } from "@/components/bible/PlanBar";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -158,6 +159,7 @@ export default function BibleChapter() {
 
   return (
     <div className={cn(readingMode && "mx-auto max-w-prose")}>
+      <PlanBar book={book} chapter={chapterNumber} />
       <ReadingMusic />
       <div className="mb-5 flex items-center justify-between gap-3">
         <div>
@@ -237,6 +239,33 @@ export default function BibleChapter() {
           Devocional de hoy
         </Button>
       </div>
+
+      {/* Barra fija de lectura: escuchar y pasar de capítulo sin subir ni bajar. */}
+      {sel.length === 0 && (
+        <div className="sticky bottom-2 z-20 mt-4 flex items-center gap-2 rounded-full border border-border bg-surface/95 p-1.5 shadow-lg backdrop-blur">
+          {speechSupported() && (
+            <button
+              type="button"
+              onClick={() => (speech.state === "playing" ? speech.pause() : speech.play())}
+              aria-label={speech.state === "playing" ? "Pausar lectura" : "Escuchar capítulo"}
+              className="grid size-10 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground"
+            >
+              {speech.state === "playing" ? <Pause className="size-4 fill-current" /> : <Play className="ml-0.5 size-4 fill-current" />}
+            </button>
+          )}
+          <div className="flex min-w-0 flex-1 items-center rounded-full bg-surface-2">
+            <button type="button" disabled={!prev} onClick={() => prev && navigate(`/bible/${book}/${prev}`, { replace: true })} aria-label="Capítulo anterior" className="tap-target grid place-items-center disabled:opacity-30">
+              <ChevronLeft className="size-5" />
+            </button>
+            <button type="button" onClick={() => navigate("/bible")} className="min-w-0 flex-1 truncate text-center text-sm font-medium">
+              {meta?.name} {chapterNumber}
+            </button>
+            <button type="button" disabled={!next} onClick={() => next && navigate(`/bible/${book}/${next}`, { replace: true })} aria-label="Capítulo siguiente" className="tap-target grid place-items-center disabled:opacity-30">
+              <ChevronRight className="size-5" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Acciones sobre los versículos marcados: barra compacta, no tapa la lectura. */}
       {sel.length > 0 && (
