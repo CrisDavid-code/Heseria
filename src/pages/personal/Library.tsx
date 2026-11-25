@@ -19,7 +19,6 @@ import { artists, users } from "@/store/directory";
 
 const TABS = [
   { id: "guardados", label: "Guardados" },
-  { id: "videos", label: "Videos" },
   { id: "cursos", label: "Cursos" },
   { id: "historial", label: "Historial" },
   { id: "descargas", label: "Descargas" },

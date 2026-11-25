@@ -47,31 +47,58 @@ async function todaysMessage(env: Env) {
   return { title: `Versículo del día · ${name} ${ch}:${v}`, body: data[String(ch)]?.[v - 1] ?? "", link: `/bible/${book}/${ch}` };
 }
 
+/**
+ * Cada hora: el versículo del día a los dispositivos cuyo horario elegido (en UTC) es esta
+ * hora. Los registrados antes de existir los horarios (sin `hours`) lo reciben a las 13:00 UTC
+ * (7:00 en Guatemala), como siempre.
+ */
 async function sendDaily(env: Env) {
   const sa = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT) as ServiceAccount;
   const token = await accessToken(sa);
   const msg = await todaysMessage(env);
-  const base = `https://firestore.googleapis.com/v1/projects/${sa.project_id}/databases/${env.DATABASE}/documents`;
-  let pageToken = "";
+  const hour = new Date().getUTCHours();
+  const root = `https://firestore.googleapis.com/v1/projects/${sa.project_id}/databases/${env.DATABASE}/documents`;
+  const auth = { Authorization: `Bearer ${token}` };
+
+  const names: string[] = [];
+  // 1) Quienes eligieron esta hora (consulta: solo se leen los que coinciden).
+  const q = await fetch(`${root}:runQuery`, {
+    method: "POST",
+    headers: { ...auth, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      structuredQuery: {
+        from: [{ collectionId: "pushTokens" }],
+        where: { fieldFilter: { field: { fieldPath: "hours" }, op: "ARRAY_CONTAINS", value: { integerValue: String(hour) } } },
+        select: { fields: [{ fieldPath: "uid" }] },
+      },
+    }),
+  });
+  if (!q.ok) throw new Error(`firestore ${q.status}`);
+  for (const row of (await q.json()) as { document?: { name: string } }[]) if (row.document) names.push(row.document.name);
+
+  // 2) A las 13:00 UTC, los antiguos sin horario.
+  if (hour === 13) {
+    let pageToken = "";
+    do {
+      const res = await fetch(`${root}/pushTokens?pageSize=300&mask.fieldPaths=hours${pageToken ? `&pageToken=${pageToken}` : ""}`, { headers: auth });
+      if (!res.ok) throw new Error(`firestore ${res.status}`);
+      const page = (await res.json()) as { documents?: { name: string; fields?: { hours?: unknown } }[]; nextPageToken?: string };
+      for (const d of page.documents ?? []) if (!d.fields?.hours) names.push(d.name);
+      pageToken = page.nextPageToken ?? "";
+    } while (pageToken);
+  }
+
   let sent = 0;
-  do {
-    const res = await fetch(`${base}/pushTokens?pageSize=300&mask.fieldPaths=uid${pageToken ? `&pageToken=${pageToken}` : ""}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) throw new Error(`firestore ${res.status}`);
-    const page = (await res.json()) as { documents?: { name: string }[]; nextPageToken?: string };
-    for (const doc of page.documents ?? []) {
-      const device = decodeURIComponent(doc.name.split("/").pop()!);
-      const r = await send(sa, token, device, msg);
-      if (r.ok) sent++;
-      // Token vencido o inválido: se borra para no reintentarlo cada día.
-      else if (r.status === 404 || r.status === 400) {
-        await fetch(`https://firestore.googleapis.com/v1/${doc.name}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
-      }
+  for (const name of names) {
+    const device = decodeURIComponent(name.split("/").pop()!);
+    const r = await send(sa, token, device, msg);
+    if (r.ok) sent++;
+    // Token vencido o inválido: se borra para no reintentarlo.
+    else if (r.status === 404 || r.status === 400) {
+      await fetch(`https://firestore.googleapis.com/v1/${name}`, { method: "DELETE", headers: auth });
     }
-    pageToken = page.nextPageToken ?? "";
-  } while (pageToken);
-  console.log(`versículo del día enviado a ${sent} dispositivos`);
+  }
+  console.log(`versículo del día (hora UTC ${hour}) enviado a ${sent} dispositivos`);
 }
 
 function send(sa: ServiceAccount, token: string, device: string, m: { title: string; body: string; link: string }) {

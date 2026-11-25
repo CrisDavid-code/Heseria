@@ -1,4 +1,4 @@
-import { BookOpen, Church, Heart, Play, Share2 } from "lucide-react";
+import { BookOpen, Church, Heart, Pause, Play, Share2 } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -13,7 +13,7 @@ import { useAsync } from "@/hooks/useAsync";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { share, shareUrl } from "@/native";
 import { sermonService } from "@/services";
-import { useLibrary } from "@/store";
+import { useLibrary, usePlayer } from "@/store";
 import { useScreen } from "@/store/screen";
 import { churches, users } from "@/store/directory";
 import { formatCompact, formatDate, formatDuration, formatLength } from "@/lib/utils";
@@ -64,7 +64,9 @@ export function SermonDetail() {
   const { id = "" } = useParams();
   const sermon = useAsync(() => sermonService.get(id), [id]);
   const related = useAsync(() => sermonService.related(id), [id]);
+  const all = useAsync(() => sermonService.list(), []);
   const library = useLibrary();
+  const player = usePlayer();
 
   usePageMeta(sermon.data?.title ?? "Sermón", sermon.data?.description);
   useScreen({ title: sermon.data?.title ?? "Sermón", back: true, hideSections: true }, [
@@ -79,16 +81,37 @@ export function SermonDetail() {
   const church = churches.find((c) => c.id === s.churchId);
   const saved = library.isSaved("sermon", s.id);
 
+  const playing = player.track?.id === s.id && player.playing;
+  /** Un solo reproductor (el global): la cola son los sermones, empezando en este. */
+  function listen() {
+    if (player.track?.id === s!.id) return player.toggle();
+    const list = (all.data ?? [s!]).filter((x) => x.audioUrl);
+    const i = Math.max(0, list.findIndex((x) => x.id === s!.id));
+    player.play(list.map((x) => ({ id: x.id, title: x.title, subtitle: x.passage, color: x.color, durationSec: x.durationSec, src: x.audioUrl })), i);
+    player.setExpanded(true);
+  }
+
   return (
     <div className="space-y-6">
-      <CatalogPlayer
-        videoUrl={s.videoUrl}
-        seed={s.id}
-        gradient={s.color}
-        title={s.title}
-        durationSec={s.durationSec}
-        chapters={s.chapters}
-      />
+      {s.audioUrl && !s.videoUrl ? (
+        <button type="button" onClick={listen} className="relative block w-full overflow-hidden rounded-3xl" aria-label={playing ? "Pausar" : "Escuchar sermón"}>
+          <GenerativeCover seed={s.id} gradient={s.color} rounded="rounded-3xl" className="aspect-video w-full" label={s.title} />
+          <span className="absolute inset-0 grid place-items-center">
+            <span className="grid size-16 place-items-center rounded-full bg-white/90 text-black shadow-lg">
+              {playing ? <Pause className="size-7 fill-current" /> : <Play className="ml-1 size-7 fill-current" />}
+            </span>
+          </span>
+        </button>
+      ) : (
+        <CatalogPlayer
+          videoUrl={s.videoUrl}
+          seed={s.id}
+          gradient={s.color}
+          title={s.title}
+          durationSec={s.durationSec}
+          chapters={s.chapters}
+        />
+      )}
 
       <header>
         <h1 className="font-display text-xl font-semibold tracking-tight">{s.title}</h1>

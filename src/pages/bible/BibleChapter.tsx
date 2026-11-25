@@ -5,6 +5,7 @@ import {
 import { SpeechBar } from "@/components/bible/SpeechBar";
 import { useSpeech } from "@/hooks/useSpeech";
 import { ReadingMusic } from "@/components/bible/ReadingMusic";
+import { PlanBar } from "@/components/bible/PlanBar";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -158,6 +159,7 @@ export default function BibleChapter() {
 
   return (
     <div className={cn(readingMode && "mx-auto max-w-prose")}>
+      <PlanBar book={book} chapter={chapterNumber} />
       <ReadingMusic />
       <div className="mb-5 flex items-center justify-between gap-3">
         <div>

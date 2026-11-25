@@ -1,5 +1,5 @@
 import { Bell, BookMarked, Check, NotebookPen, Users } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { GenerativeCover, HeroMedia } from "@/components/media/covers";
@@ -10,7 +10,9 @@ import { Badge, Chip, Progress, Textarea } from "@/components/ui/primitives";
 import { useAsync } from "@/hooks/useAsync";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { haptic } from "@/native";
-import { planService } from "@/services";
+import { journalService, planService } from "@/services";
+import { passageChapters } from "@/lib/reference";
+import { bibleBooks } from "@/store/directory";
 import { useLibrary } from "@/store";
 import { useScreen } from "@/store/screen";
 import { cn, formatCompact } from "@/lib/utils";
@@ -120,6 +122,11 @@ export function PlanDetail() {
   const library = useLibrary();
 
   const [done, setDone] = useState<number[]>([]);
+  // Al volver de leer (#dia-N), se muestra ese día.
+  useEffect(() => {
+    if (!plan.data || !location.hash.startsWith("#dia-")) return;
+    setTimeout(() => document.getElementById(location.hash.slice(1))?.scrollIntoView({ block: "center" }), 50);
+  }, [plan.data]);
   const [noteFor, setNoteFor] = useState<number | null>(null);
   const [note, setNote] = useState("");
 
@@ -248,9 +255,14 @@ export function PlanDetail() {
                     <p className="mt-0.5 text-xs text-primary">{d.passage}</p>
                     <p className="mt-1.5 text-xs text-muted-foreground">{d.task}</p>
                     <div className="mt-2.5 flex gap-2">
-                      <Button asChild size="sm" variant="subtle">
-                        <Link to="/bible">Leer pasaje</Link>
-                      </Button>
+                      {(() => {
+                        const first = passageChapters(d.passage, bibleBooks)[0];
+                        return first ? (
+                          <Button asChild size="sm" variant="subtle">
+                            <Link to={`/bible/${first.book}/${first.chapter}?plan=${p.id}&dia=${d.day}`}>Leer pasaje</Link>
+                          </Button>
+                        ) : null;
+                      })()}
                       <Button size="sm" variant="ghost" onClick={() => setNoteFor(d.day)}>
                         <NotebookPen className="size-3.5" /> Nota
                       </Button>
@@ -277,10 +289,22 @@ export function PlanDetail() {
             size="lg"
             className="mt-4"
             disabled={!note.trim()}
-            onClick={() => {
-              toast.success("Nota guardada");
-              setNote("");
-              setNoteFor(null);
+            onClick={async () => {
+              const day = plan.data?.days.find((x) => x.day === noteFor);
+              try {
+                await journalService.save({
+                  kind: "espiritual",
+                  title: `${plan.data?.title ?? "Plan"} · Día ${noteFor}`.slice(0, 200),
+                  body: note.trim(),
+                  refs: day ? [day.passage] : [],
+                  tags: ["plan"],
+                });
+                toast.success("Nota guardada en Mi diario");
+                setNote("");
+                setNoteFor(null);
+              } catch (err) {
+                toast.error(err instanceof Error ? err.message : "No se pudo guardar la nota.");
+              }
             }}
           >
             Guardar nota

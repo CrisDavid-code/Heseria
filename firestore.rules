@@ -427,8 +427,9 @@ service cloud.firestore {
     // Cada quien registra o borra solo el suyo; nadie los lee desde la app.
     match /pushTokens/{token} {
       allow create, update: if signedIn() && token.size() <= 400
-        && data().keys().hasOnly(['uid', 'platform', 'updatedAt'])
-        && data().uid == uid() && str(data().platform, 1, 20) && nowish(data().updatedAt);
+        && data().keys().hasOnly(['uid', 'platform', 'hours', 'updatedAt'])
+        && data().uid == uid() && str(data().platform, 1, 20) && nowish(data().updatedAt)
+        && (!('hours' in data()) || (data().hours is list && data().hours.size() <= 3));
       allow delete: if signedIn() && resource.data.uid == uid();
     }
 

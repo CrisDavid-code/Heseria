@@ -202,6 +202,8 @@ console.log("\nFundación y ofrendas");
   await deleteApp(ceci.app);
 }
 await allowed("Ana registra su dispositivo para el versículo del día", () => setDoc(doc(ana.db, "pushTokens", "tok-ana"), { uid: ana.uid, platform: "web", updatedAt: serverTimestamp() }));
+await allowed("Ana elige sus horarios de lectura (horas UTC)", () => setDoc(doc(ana.db, "pushTokens", "tok-ana"), { uid: ana.uid, platform: "web", hours: [13, 2], updatedAt: serverTimestamp() }));
+await denied("pero no más de tres", () => setDoc(doc(ana.db, "pushTokens", "tok-ana"), { uid: ana.uid, platform: "web", hours: [1, 2, 3, 4], updatedAt: serverTimestamp() }));
 await denied("no registra un dispositivo a nombre de otro", () => setDoc(doc(ana.db, "pushTokens", "tok-x"), { uid: beto.uid, platform: "web", updatedAt: serverTimestamp() }));
 await denied("nadie lee los dispositivos desde la app", () => getDoc(doc(owner.db, "pushTokens", "tok-ana")));
 await denied("Beto no borra el dispositivo de Ana", () => deleteDoc(doc(beto.db, "pushTokens", "tok-ana")));

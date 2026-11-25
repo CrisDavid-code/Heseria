@@ -10,7 +10,7 @@ import { useAsync } from "@/hooks/useAsync";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { isAudio, PROVIDER_LABEL } from "@/lib/media-source";
 import { share, shareUrl } from "@/native";
-import { contentService } from "@/services";
+import { contentService, sermonService } from "@/services";
 import { useLibrary, usePlayer } from "@/store";
 import { mediaUrl } from "@/services/api";
 import { MEDIA_KIND_LABEL } from "@/store/content";
@@ -52,13 +52,16 @@ export default function ContentDetail() {
 
   return (
     <div className="space-y-6">
+      {/* El audio suena en el reproductor global (uno solo); el video, aquí. */}
+      {!audioPlayable && (
       <MediaPlayer
-        source={c.source}
-        title={c.title}
-        seed={c.id}
-        gradient={c.color}
-        durationSec={c.durationSec}
-      />
+          source={c.source}
+          title={c.title}
+          seed={c.id}
+          gradient={c.color}
+          durationSec={c.durationSec}
+        />
+      )}
 
       <header>
         <div className="flex flex-wrap items-center gap-1.5">
@@ -80,13 +83,14 @@ export default function ContentDetail() {
           <Button
             className="flex-1"
             onClick={() => {
-              player.playTrack({
-                id: c.id,
-                title: c.title,
-                subtitle: c.subtitle,
-                color: c.color,
-                durationSec: c.durationSec || 210,
-                src: mediaUrl(c.source.url),
+              const one = { id: c.id, title: c.title, subtitle: c.subtitle, color: c.color, durationSec: c.durationSec || 210, src: mediaUrl(c.source.url) };
+              if (c.kind !== "sermon") return player.playTrack(one);
+              // Sermones: la cola son solo sermones (siguiente no salta a podcasts ni a música).
+              void sermonService.list().then((list) => {
+                const items = list.filter((x) => x.audioUrl);
+                const i = items.findIndex((x) => x.id === c.id);
+                if (i < 0) return player.playTrack(one);
+                player.play(items.map((x) => ({ id: x.id, title: x.title, subtitle: x.passage, color: x.color, durationSec: x.durationSec, src: x.audioUrl })), i);
               });
               toast.success("Reproduciendo en el reproductor global");
             }}

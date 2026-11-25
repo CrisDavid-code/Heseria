@@ -71,6 +71,36 @@ export default function BibleIndex() {
 
   return (
     <div className="space-y-6">
+      {/* Buscador arriba: libro, referencia («Juan 3:16») o palabra. */}
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Buscar libro o referencia (Juan 3:16)"
+          aria-label="Buscar libro o referencia de la Biblia"
+          className="h-11 rounded-full pl-10"
+          onKeyDown={(e) => {
+            if (e.key !== "Enter") return;
+            if (jump) navigate(`/bible/${jump.book.id}/${jump.chapter}`);
+            else if (filtered.length === 1) setChapterFor(filtered[0]);
+          }}
+        />
+      </div>
+      {jump && (
+        <button
+          type="button"
+          onClick={() => navigate(`/bible/${jump.book.id}/${jump.chapter}`)}
+          className="flex w-full items-center gap-2 rounded-2xl border border-primary/30 bg-primary/10 p-3 text-left text-sm font-medium"
+        >
+          <BookOpen className="size-4 text-primary" aria-hidden />
+          Ir a {jump.book.name} {jump.chapter}{jump.verse ? `:${jump.verse}` : ""}
+          <ChevronRight className="ml-auto size-4 text-muted-foreground" aria-hidden />
+        </button>
+      )}
+
+      {!query.trim() && (
+        <>
       {spotBook && (
         <button
           type="button"
@@ -106,35 +136,20 @@ export default function BibleIndex() {
 
 
       <DailyVerseCard />
+        </>
+      )}
 
-      {/* Book search + list */}
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Buscar libro o referencia (Juan 3:16)"
-          aria-label="Buscar libro o referencia de la Biblia"
-          className="h-11 rounded-full pl-10"
-          onKeyDown={(e) => {
-            if (e.key !== "Enter") return;
-            if (jump) navigate(`/bible/${jump.book.id}/${jump.chapter}`);
-            else if (filtered.length === 1) setChapterFor(filtered[0]);
-          }}
-        />
-      </div>
-      {jump && (
+      {query.trim().length >= 3 && !jump && (
         <button
           type="button"
-          onClick={() => navigate(`/bible/${jump.book.id}/${jump.chapter}`)}
-          className="flex w-full items-center gap-2 rounded-2xl border border-primary/30 bg-primary/10 p-3 text-left text-sm font-medium"
+          onClick={() => navigate(`/search?q=${encodeURIComponent(query.trim())}`)}
+          className="flex w-full items-center gap-2 rounded-2xl border border-border p-3 text-left text-sm"
         >
-          <BookOpen className="size-4 text-primary" aria-hidden />
-          Ir a {jump.book.name} {jump.chapter}{jump.verse ? `:${jump.verse}` : ""}
+          <Search className="size-4 text-primary" aria-hidden />
+          Buscar «{query.trim()}» en el texto de la Biblia
           <ChevronRight className="ml-auto size-4 text-muted-foreground" aria-hidden />
         </button>
       )}
-
       {query.trim() && !jump ? (
         filtered.length ? (
           <section aria-label="Libros encontrados">
