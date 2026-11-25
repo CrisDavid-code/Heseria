@@ -341,7 +341,7 @@ function FeedRow({ feed }: { feed: PodcastFeed }) {
 export function PodcastFeedDetail() {
   const { id = "" } = useParams();
   const { user } = useSession();
-  const feed = useAsync(() => podcastFeedService.get(id, 100), [id]);
+  const feed = useAsync(() => podcastFeedService.get(id, 500), [id]);
   const [syncing, setSyncing] = useState(false);
 
   usePageMeta(feed.data?.title ?? "Podcast");

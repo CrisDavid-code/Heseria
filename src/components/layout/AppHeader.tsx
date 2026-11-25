@@ -219,6 +219,7 @@ export function AppHeader() {
                 <Link
                   key={s.href}
                   to={s.href}
+                  replace
                   className={cn(
                     "shrink-0 rounded-full border px-3.5 py-1.5 text-[0.8rem] transition-colors",
                     active
