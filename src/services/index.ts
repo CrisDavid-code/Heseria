@@ -713,12 +713,13 @@ export const podcastFeedService: PodcastFeedService = {
       (await list(col("podcastFeeds"), toFeed)).sort((a, b) => a.title.localeCompare(b.title)),
     ),
 
-  get: (id, max = 50) =>
+  get: (id, max = 1000) =>
     friendly(async () => {
       const feed = await one("podcastFeeds", id, toFeed);
       if (!feed) throw new AppError("Ese podcast no existe.");
+      // En orden de episodios: del primero (el más antiguo) al último.
       const items = (await list(query(col("podcastEpisodes"), where("feedId", "==", id)), toEpisode))
-        .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
+        .sort((a, b) => a.publishedAt.localeCompare(b.publishedAt))
         .slice(0, max);
       return { ...feed, items };
     }),

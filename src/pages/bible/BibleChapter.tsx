@@ -211,7 +211,7 @@ export default function BibleChapter() {
       <nav className="mt-8 flex items-center justify-between gap-3">
         {prev ? (
           <Button asChild variant="outline" className="flex-1">
-            <Link to={`/bible/${book}/${prev}`}>
+            <Link replace to={`/bible/${book}/${prev}`}>
               <ChevronLeft className="size-4" /> Capítulo {prev}
             </Link>
           </Button>
@@ -220,7 +220,7 @@ export default function BibleChapter() {
         )}
         {next ? (
           <Button asChild variant="outline" className="flex-1">
-            <Link to={`/bible/${book}/${next}`}>
+            <Link replace to={`/bible/${book}/${next}`}>
               Capítulo {next} <ChevronRight className="size-4" />
             </Link>
           </Button>

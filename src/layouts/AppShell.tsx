@@ -7,6 +7,7 @@ import { isSuperAdmin } from "@/lib/permissions";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { BottomTabs } from "@/components/layout/BottomTabs";
 import { MiniPlayer, usePlayerClock } from "@/components/layout/Player";
+import { closeTop } from "@/lib/back-stack";
 import { RadioBar } from "@/components/media/RadioBar";
 import { OfflineState } from "@/components/states";
 import { TooltipProvider } from "@/components/ui/overlays";
@@ -65,6 +66,8 @@ export function AppShell() {
   // En la primera pantalla se deja pasar y Android cierra la app.
   useEffect(() => {
     return onHardwareBack(() => {
+      // Primero se cierra lo que esté encima (hoja, diálogo, reproductor).
+      if (closeTop()) return true;
       const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0;
       if (idx > 0) {
         navigate(-1);

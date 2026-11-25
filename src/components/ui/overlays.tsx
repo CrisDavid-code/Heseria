@@ -3,10 +3,21 @@ import * as DropdownPrimitive from "@radix-ui/react-dropdown-menu";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { X } from "lucide-react";
-import type { ComponentProps, ReactNode } from "react";
+import { useEffect, useRef, type ComponentProps, type ReactNode } from "react";
+import { pushBack } from "@/lib/back-stack";
 import { cn } from "@/lib/utils";
 
 /* ---------------------------------------------------------------- dialog */
+
+/**
+ * Dentro de cada diálogo u hoja: «atrás» (Android, navegador o PWA) la cierra en vez de
+ * cambiar de pantalla.
+ */
+function CloseOnBack() {
+  const ref = useRef<HTMLButtonElement>(null);
+  useEffect(() => pushBack(() => ref.current?.click()), []);
+  return <DialogPrimitive.Close ref={ref} className="hidden" tabIndex={-1} aria-hidden />;
+}
 
 export const Dialog = DialogPrimitive.Root;
 export const DialogTrigger = DialogPrimitive.Trigger;
@@ -31,6 +42,7 @@ export function DialogContent({
         )}
         {...props}
       >
+        <CloseOnBack />
         <div className="mb-4 pr-8">
           <DialogPrimitive.Title className="font-display text-lg font-semibold">
             {title}
@@ -86,6 +98,7 @@ export function SheetContent({
         )}
         {...props}
       >
+        <CloseOnBack />
         <DialogPrimitive.Title className="sr-only">{title}</DialogPrimitive.Title>
         {children}
       </DialogPrimitive.Content>
@@ -130,6 +143,7 @@ export function BottomSheetContent({
         )}
         {...props}
       >
+        <CloseOnBack />
         {showHandle && !fullScreen && (
           <div className="flex shrink-0 justify-center pb-1 pt-2.5" aria-hidden>
             <span className="h-1 w-9 rounded-full bg-muted-foreground/35" />
